@@ -1,0 +1,281 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Reset all previous Kubernetes Configurations.
+  include: "{{ inventory_dir }}/tasks/kubeadm-reset.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+  delegate_to: masters, workers
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: This command will delete all files within specified Directory.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Create Kubernetes PKI Directories.
+  file:
+    path: /etc/kubernetes/pki
+    state: directory
+    mode: 0755
+
+- name: Add Kubernetes Admin Configuration into Initial Master Node.
+  template:
+    src: "{{ inventory_dir }}/resources/kubernetes/kubeadm-config.yaml"
+    dest: /etc/kubernetes/pki/kubeadm-config.yaml
+  vars:
+    CONTROL_PLANE_ENDPOINT: "{{ control_plane_endpoint }}"
+  delegate_to: master-01
+  run_once: yes
+
+- name: Initialize Kubernetes Cluster within the first Master Node.
+  shell: kubeadm init --config /etc/kubernetes/pki/kubeadm-config.yaml;
+  delegate_to: master-01
+  run_once: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - By Default `kubectl` looks for file named `config` in the `$HOME/.kube` directory.
+# @see {@link https://kubernetes.io/docs/reference/kubectl/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Create Directory for `Kube-Config` File.
+  file:
+    path: ~/.kube
+    state: directory
+    owner: root
+    mode: 0755
+  when: "'master' in ansible_hostname"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - By Default `kubectl` looks for file named `config` in the `$HOME/.kube` directory. Otherwise `kubectl` from Ansible failed.
+# @see {@link https://kubernetes.io/docs/reference/kubectl/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Copy `/etc/kubernetes/admin.conf` to SSH-User Home Directory.
+  copy:
+    remote_src: yes
+    src: /etc/kubernetes/admin.conf
+    dest: ~/.kube/config
+    owner: root
+    mode: "u=rw,g=r,o=r" # Mode::[[ {read: 4}, {write: 2}, {execute: 1} ]]
+  delegate_to: master-01
+  run_once: yes
+
+- name: Create Symbolic Link from `/etc/kubernetes/admin.conf` to SSH-User Home Directory.
+  file:
+    src: /etc/kubernetes/admin.conf
+    dest: ~/.kube/config
+    state: link
+    owner: root
+    mode: "u=rw,g=r,o=r" # Mode::[[ {read: 4}, {write: 2}, {execute: 1} ]]
+    force: True # Force Symlink override exist files.
+  delegate_to: master-01
+  run_once: yes
+  when: False # Currently Disable. Somehow symlink has full permission [0777].
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Kubernetes [Control-Plane] Load-Balancer sometimes direct into wrong Master Node. Causing failed for apply command.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Deploy Flannel CNI Network.
+  shell: kubectl apply --filename https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml;
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf # Allow `kubectl` to read Kubernetes Configuration file.
+  retries: 10 # Max Retry Number until Failed.
+  delay: 3 # Delay Seconds for each Retry.
+  delegate_to: master-01
+  run_once: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Get discovery Certificate Authority (CA) Token Hash.
+# @see {@link https://github.com/kubernetes/kubeadm/issues/659#issuecomment-396070894}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Get Kubernetes Token and Token-Hash.
+  block:
+    - name: Register Kubernetes join Command.
+      shell: kubeadm token create --print-join-command
+      register: kubernetes_join_command
+      delegate_to: master-01
+      run_once: yes
+
+    - name: Filter Kubernetes Token using RegExp.
+      set_fact:
+        token: "{{ kubernetes_join_command.stdout | regex_search(regexp, '\\2') | first }}"
+      vars:
+        regexp: '([^\s]+\s){4}([^\s]+)'
+      delegate_to: master-01
+      run_once: yes
+
+    - name: Filter Kubernetes Token Hash using RegExp.
+      set_fact:
+        token_hash: "{{ kubernetes_join_command.stdout | regex_search(regexp, '\\2') | first }}"
+      vars:
+        regexp: '([^\s]+\s){6}([^\s]+)'
+      delegate_to: master-01
+      run_once: yes
+
+    - name: Debug Logging all Registered Variables.
+      debug:
+        msg: "{{ item.key }}: {{ item.value }}"
+      delegate_to: master-01
+      run_once: yes
+      loop:
+        - { key: token, value: "{{ token }}" }
+        - { key: token_hash, value: "{{ token_hash }}" }
+
+  delegate_to: master-01
+  run_once: yes
+
+- name: Generate Kubernetes Certificate Key.
+  shell: kubeadm init phase upload-certs --upload-certs
+  register: kubernetes_certificate_key
+  delegate_to: master-01
+  run_once: yes
+
+- name: Pause 2 seconds to make sure Certificate got uploaded.
+  pause:
+    seconds: 2
+
+- name: Bootstrap Master Nodes within Kubernetes Cluster.
+  block:
+    - name: Join Master Nodes within Kubernetes Cluster.
+      shell: >
+        kubeadm join {{ control_plane_endpoint }}
+        --control-plane
+        --token {{ token }}
+        --discovery-token-ca-cert-hash {{ token_hash }}
+        --certificate-key {{ kubernetes_certificate_key.stdout_lines[2] }}
+
+    - name: Copy `/etc/kubernetes/admin.conf` to SSH-User Home Directory.
+      copy:
+        remote_src: yes
+        src: /etc/kubernetes/admin.conf
+        dest: ~/.kube/config
+        owner: root
+        mode: "u=rw,g=r,o=r" # Mode::[[ {read: 4}, {write: 2}, {execute: 1} ]]
+
+  when: "'master' in ansible_hostname and ansible_hostname != 'master-01'"
+
+- name: Bootstrap Worker Nodes within Kubernetes Cluster.
+  block:
+    - name: Join Worker Nodes within Kubernetes Cluster.
+      shell: >
+        kubeadm join {{ control_plane_endpoint }}
+        --token {{ token }}
+        --discovery-token-ca-cert-hash {{ token_hash }}
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: The Kubelet Daemon Config Files for CentOS 8 Stream changed into.
+    # @see {@link https://github.com/kubernetes/kubeadm/issues/1575#issuecomment-496432739}
+    # @see {@link https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64/repodata/filelists.xml}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Edit `kubeadm.conf` for Worker Nodes.
+      blockinfile:
+        # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+        path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+        block: |
+          Environment="KUBELET_EXTRA_ARGS=--node-ip={{ inventory_hostname }}"
+
+    - name: Restart kubelet service
+      service:
+        name: kubelet
+        daemon-reload: yes
+        state: restarted
+
+  when: "'worker' in ansible_hostname"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Add / Remove] Roles to Cluster Nodes.
+# @see {@link https://stackoverflow.com/questions/48854905/how-to-add-roles-to-nodes-in-kubernetes}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set Role Labels for [Master / Control-Plane] Nodes
+  shell: >
+    kubectl label --overwrite node {{ item }}.e8s.io node-role.kubernetes.io/master=""
+  loop: "{{ groups.masters }}"
+  delegate_to: master-01
+  run_once: yes
+
+- name: Set Role Labels for [Worker] Nodes
+  shell: >
+    kubectl label --overwrite node {{ item }}.e8s.io node-role.kubernetes.io/worker=""
+  loop: "{{ groups.workers }}"
+  delegate_to: master-01
+  run_once: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://serverfault.com/questions/691080/how-to-fetch-multiple-files-from-remote-machine-to-local-with-ansible/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: List all Files need to copy from Remote Machine to Local Ansible Machine.
+  shell: find ~/.kube/* -maxdepth 1 -type f | cut --delimiter '~' --fields=2
+  register: context_kubernetes
+  delegate_to: master-01
+  run_once: yes
+  when: False # Currently Disable.
+
+- name: "[[Fetch && Pull]] all Files from Remote Machine to Local Ansible Machine."
+  fetch:
+    src: "{{ item }}"
+    dest: ~/.kube/
+  with_items: "{{ context_kubernetes.stdout_lines }}"
+  delegate_to: master-01
+  run_once: yes
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://stackoverflow.com/questions/54152051/ansible-fetch-a-collection-of-files-to-the-destination-without-copying-remote/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: List all Files need to copy from Remote Machine to Local Ansible Machine.
+  find:
+    paths: "~/.kube"
+    recurse: false
+  register: context_kubernetes
+  delegate_to: master-01
+  run_once: yes
+  when: False # Currently Disable.
+
+- name: "[[Fetch && Pull]] all Files from Remote Machine to Local Ansible [Admin] Machine."
+  block:
+    - fetch:
+        src: "{{ item.path }}"
+        dest: ~/.kube/
+        flat: yes
+      with_items: "{{ context_kubernetes.files }}"
+      delegate_to: master-01
+      run_once: yes
+
+    - fetch:
+        src: "{{ item.path }}"
+        dest: ~/.kube/
+        flat: yes
+      with_items: "{{ context_kubernetes.files }}"
+      delegate_to: master-01
+      run_once: yes
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://stackoverflow.com/questions/56048959/ansible-local-action-example-how-does-it-work/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Pull Kubernetes Admin Context from Remote Master Nodes.
+  fetch:
+    src: /etc/kubernetes/admin.conf
+    dest: /etc/kubernetes/admin.conf
+    flat: yes
+  delegate_to: master-01
+  run_once: yes
+
+- name: Copy Kubernetes Admin Context into Specific User Directory.
+  local_action:
+    module: copy
+    src: /etc/kubernetes/admin.conf
+    dest: ~/.kube/config
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Add / Deploy] Metrics Server to Kubernetes Cluster.
+# @see {@link https://computingforgeeks.com/how-to-deploy-metrics-server-to-kubernetes-cluster/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Run Ansible Tasks locally without delegate_to `localhost`.
+# @see {@link https://stackoverflow.com/questions/18900236/run-command-on-the-ansible-host#43220691}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Deploy Metrics Server to Kubernetes Cluster within Admin Context.
+  local_action:
+    module: shell
+    _raw_params: kubectl apply --filename {{ inventory_dir }}/resources/kubernetes/metrics-server-v0.6.1.yaml
+  run_once: yes

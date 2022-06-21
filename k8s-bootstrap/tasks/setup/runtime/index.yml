@@ -1,0 +1,43 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Install all Dependency Packages for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Setup all Runtime Configuration for all [Masters && Workers] Node.
+  include: "{{ inventory_dir }}/tasks/setup/runtime/master-worker.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+  delegate_to: masters, workers
+
+- name: Disable [SWAP] Mechanism for all [Masters && Workers] Node.
+  include: "{{ inventory_dir }}/tasks/disable-swap.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+  delegate_to: masters, workers
+
+- name: Disable [SELinux] Mechanism for all [Masters && Workers] Node.
+  include: "{{ inventory_dir }}/tasks/disable-selinux.yml"
+  vars:
+    restart_server: False
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+  delegate_to: masters, workers
+
+- name: Disable [SELinux] Mechanism for all [Load-Balancers] Node.
+  include: "{{ inventory_dir }}/tasks/disable-selinux.yml"
+  vars:
+    restart_server: False
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'load-balancer' in ansible_hostname"
+  delegate_to: load_balancers
+
+- name: Setup all Runtime Configuration for all [Load-Balancers] Node.
+  include: "{{ inventory_dir }}/tasks/setup/runtime/load-balancer.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'load-balancer' in ansible_hostname"
+  delegate_to: load_balancers

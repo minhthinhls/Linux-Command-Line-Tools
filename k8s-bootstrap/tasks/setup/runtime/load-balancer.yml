@@ -1,0 +1,121 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Allow HTTP Daemon Scripts and Modules connect to the Network using TCP.
+# @details: Enable this allow NGINX to forward [STREAM / HTTP] directly to <HOST-MACHINE>:<PORT>.
+# @command >> sudo setsebool -P httpd_can_network_connect 0;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set httpd_can_network_connect flag off and keep it persistent across Reboots.
+  seboolean:
+    name: httpd_can_network_connect
+    state: no
+    persistent: yes
+  ignore_errors: True # ModuleNotFoundError: 'semanage' is present in the Mitogen importer blacklist.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Allow httpd to act as Network Relay.
+# @details: Enable this allow NGINX to forward [STREAM / HTTP] only into <INTERNAL-NETWORK>:<PORT>.
+# @command >> sudo setsebool -P httpd_can_network_relay 1;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set httpd_can_network_relay flag on and keep it persistent across Reboots.
+  seboolean:
+    name: httpd_can_network_relay
+    state: yes
+    persistent: yes
+  ignore_errors: True # ModuleNotFoundError: 'semanage' is present in the Mitogen importer blacklist.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Strip out Comments and Blank Lines with Grep.
+# @see {@link https://www.linuxtrainingacademy.com/strip-out-comments-blank-lines-grep/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- debug:
+    msg: "{{ item }}"
+  with_lines:
+    - getsebool -a | grep httpd_can_network;
+
+- name: Start & Enable NGINX Service.
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://www.middlewareinventory.com/blog/ansible-copy-file-or-directory-local-to-remote/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Paste NGINX Configuration into Load-Balancer Machines.
+  copy:
+    src: "{{ inventory_dir }}/etc/nginx/"
+    dest: /etc/nginx/
+    owner: root
+    # group: admin
+    mode: 0644
+
+- name: Restart NGINX Service.
+  systemd:
+    name: nginx
+    state: restarted
+    daemon_reload: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Google Cloud by default will set [zone=trusted] instead of [zone=public] when Interface `eth0` belongs to Internal Network.
+# @see {@link https://stackoverflow.com/questions/51563643/how-to-change-firewalld-zone-using-ansible#56057846}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set Public Zone as default Firewall Policy.
+  command: firewall-cmd --set-default-zone=public
+  when: True # Currently Enable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Configure Firewall Rules. Provide Family Rule Sets for Cluster Nodes.
+# @see {@link https://thecodecloud.in/install-configure-kubernetes-k8s-cluster-centos-8-rhel-8/}
+# @example [PROVISION CLUSTER FAMILY RULE] > firewall-cmd --zone=public --permanent --add-rich-rule 'rule family=ipv4 source address=worker-IP-address/32 accept';
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set Firewall Masquarade for either [Public && Trusted] Zones.
+  tags:
+    - firewalld
+    - firewall-cmd
+  firewalld:
+    zone: public
+    masquerade: yes | bool # Cast to boolean to disable WARNING.
+    permanent: true
+    state: enabled
+
+- name: Permit Traffic within Default Public Zone for [HTTP && HTTPS] Services.
+  firewalld:
+    zone: public
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+  loop:
+    - http
+    - https
+
+- name: Configure `firewalld` on Load-Balancer Nodes.
+  firewalld:
+    zone: public
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+  loop:
+    - 22/tcp
+    - 80/tcp
+    - 443/tcp
+    - 6443/tcp
+    - 8080-8081/tcp
+    - 8443/tcp
+  when: "'load-balancer' in ansible_hostname"
+
+- name: Reload firewalld
+  shell: firewall-cmd --reload
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Strip out Comments and Blank Lines with Grep.
+# @see {@link https://www.linuxtrainingacademy.com/strip-out-comments-blank-lines-grep/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Get Status of Firewall Daemon after Restart Service.
+  command: firewall-cmd --list-all-zones
+  register: firewalld_status
+
+- name: Print out Firewall Daemon Status.
+  debug: msg="{{firewalld_status}}"

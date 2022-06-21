@@ -1,0 +1,16 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Kubernetes Cluster Configuration via YAML Structure.
+# @see {@link https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: stable
+apiServer:
+  certSANs:
+    - "172.16.1.1"
+controlPlaneEndpoint: "{{ CONTROL_PLANE_ENDPOINT }}"
+networking:
+  serviceSubnet: "10.96.0.0/16"
+  podSubnet: "10.244.0.0/16"
+certificatesDir: "/etc/kubernetes/pki"

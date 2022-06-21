@@ -1,0 +1,27 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+- name: 'Check whether `/$HOME/{{ PROJECT_NAME }}/` folder yet exists (1)'
+  stat:
+    path: /$HOME/{{ PROJECT_NAME }}/
+  register: linux_tools_project
+
+- name: 'Pull @Alias Project into `/$HOME/{{ PROJECT_NAME }}/` for the first time (2).'
+  git:
+    repo: https://{{ git_token }}@github.com/minhthinhls/{{ PROJECT_NAME }}.git
+    dest: /$HOME/{{ PROJECT_NAME }}/
+    clone: yes
+    update: yes
+  when: not linux_tools_project.stat.exists
+
+- name: 'Execute Git Pull && Reset `--hard` to `/$HOME/{{ PROJECT_NAME }}/` Project (3).'
+  command: bash /$HOME/{{ PROJECT_NAME }}/pull.sh
+
+- name: 'Creating @Alias within Virtual Machines from `{{ PROJECT_NAME }}` Project (4).'
+  command: bash /$HOME/{{ PROJECT_NAME }}/workspace/alias-create.sh
+
+- name: 'Fetching @Alias within Virtual Machines from `{{ PROJECT_NAME }}` Project (5).'
+  shell: source /$HOME/.bashrc
+  ignore_errors: True
+  args:
+    executable: /bin/bash

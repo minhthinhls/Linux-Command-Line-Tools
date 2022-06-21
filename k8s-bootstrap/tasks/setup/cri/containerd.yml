@@ -1,0 +1,42 @@
+---
+- name: Add Docker Repository.
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docer-ce.repo
+
+- name: Install Containerd.
+  yum:
+    name: containerd.io
+    state: present
+    update_cache: yes
+
+- name: Create required Containerd Directories.
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  loop:
+    - /etc/containerd
+    - /etc/docker
+
+- name: Configure Containerd.
+  shell: containerd config default > /etc/containerd/config.toml
+  run_once: true
+
+- name: Set `cgroup` Driver as `systemd`.
+  template:
+    src: "{{ inventory_dir }}/templates/docker-daemon.json"
+    dest: /etc/docker/daemon.json
+
+- name: Start & Enable Containerd Service.
+  systemd:
+    name: containerd
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Restart Containerd Service.
+  systemd:
+    name: containerd
+    state: restarted
+    daemon_reload: yes

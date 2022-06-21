@@ -1,0 +1,11 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Bootstrap Kubernetes Cluster for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Bootstrap Kubernetes Cluster for all [Master, Workers] Node.
+  include: "{{ inventory_dir }}/tasks/setup/kubernetes/bootstrap-kubernetes.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+  delegate_to: masters, workers

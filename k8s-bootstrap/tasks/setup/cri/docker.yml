@@ -1,0 +1,50 @@
+---
+- name: Add Docker Repository.
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docer-ce.repo
+
+- name: Install Supported Version of Docker.
+  yum:
+    name: docker-ce
+    state: present
+    update_cache: yes
+
+- name: Create required Docker Directories.
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /etc/docker
+    - /etc/systemd/system/docker.service.d
+
+- name: Set `cgroup` Driver as `systemd`.
+  template:
+    src: "{{ inventory_dir }}/templates/docker-daemon.json"
+    dest: /etc/docker/daemon.json
+
+- name: Add Current User to Docker Group.
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+
+- name: Start & Enable Docker Service.
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Setup Docker Proxy.
+  template:
+    src: "{{ inventory_dir }}/templates/docker-proxy.conf"
+    dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+  when: setup_proxy
+
+- name: Restart Docker Service.
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: yes

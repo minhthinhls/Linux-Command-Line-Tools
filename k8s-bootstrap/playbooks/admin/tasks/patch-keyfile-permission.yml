@@ -1,0 +1,22 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+- name: Change SSH Key-File Permission for resolving [Ansible] WARNING.
+  file:
+    path: "/$HOME/.ssh/{{ item }}"
+    owner: "root"
+    group: "users"
+    mode: 'u=rw,g=,o='
+  loop:
+    - admin.e8s.io.ppk
+    - admin.e8s.io.open-ssh.ppk
+
+- name: Change SSH Key-File Permission for resolving [Ansible] WARNING.
+  file:
+    path: "/$HOME/.ssh/{{ item }}"
+    owner: "root"
+    group: "users"
+    mode: 'u=rw,g=r,o=r'
+  loop:
+    - admin.e8s.io.pub
+    - admin.e8s.io.open-ssh.pub

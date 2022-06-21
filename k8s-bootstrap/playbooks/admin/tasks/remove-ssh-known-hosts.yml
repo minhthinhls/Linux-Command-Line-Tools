@@ -1,0 +1,13 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - SSH error connection into new Domain.
+# @see {@link https://stackoverflow.com/questions/19766638/ssh-error-in-connection-to-a-new-domain}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove All Known Hosts.
+  known_hosts:
+    name: "{{ item.host }}"
+    path: /$HOME/.ssh/known_hosts
+    state: absent
+  loop: "{{ k8s_nodes }}"

@@ -1,0 +1,21 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ masters, workers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files: "{{ inventory_dir }}/vars/node-env.yml"
+
+  tasks:
+    - name: Disable Swap.
+      include: "{{ inventory_dir }}/tasks/disable-swap.yml"
+
+    - name: Disable SELinux.
+      include: "{{ inventory_dir }}/tasks/disable-selinux.yml"

@@ -1,0 +1,14 @@
+---
+k8s_nodes:
+  - { host: admin.e8s.io,            private_ip: 172.16.0.1 }
+  - { host: load-balancer-01.e8s.io, private_ip: 172.16.0.2 }
+  - { host: load-balancer-02.e8s.io, private_ip: 172.16.0.3 }
+  - { host: master-01.e8s.io,        private_ip: 172.16.1.1 }
+  - { host: master-02.e8s.io,        private_ip: 172.16.1.2 }
+  - { host: master-03.e8s.io,        private_ip: 172.16.1.3 }
+  - { host: worker-01.e8s.io,        private_ip: 172.16.2.1 }
+  - { host: worker-02.e8s.io,        private_ip: 172.16.2.2 }
+  - { host: worker-03.e8s.io,        private_ip: 172.16.2.3 }
+  - { host: worker-04.e8s.io,        private_ip: 172.16.2.4 }
+  - { host: worker-05.e8s.io,        private_ip: 172.16.2.5 }
+  - { host: worker-06.e8s.io,        private_ip: 172.16.2.6 }

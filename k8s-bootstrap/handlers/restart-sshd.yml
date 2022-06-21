@@ -1,0 +1,11 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/handlers"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/handlers
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Restart SSH Daemon Handlers.
+# @see {@link https://stackoverflow.com/questions/68404640/use-ansible-playbook-to-enable-and-disable-root-login}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: restart-ssh-daemon
+  service:
+    name: sshd
+    state: restarted

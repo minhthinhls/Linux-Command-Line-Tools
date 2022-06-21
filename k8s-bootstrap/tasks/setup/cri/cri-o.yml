@@ -1,0 +1,36 @@
+---
+- name: Configure Cri-o YUM Repository.
+  template:
+    src: "{{ inventory_dir }}/templates/repository/cri-o.conf"
+    dest: /etc/yum.repos.d/crio.repo
+
+- name: Setup required `sysctl` params.
+  sysctl:
+    name: '{{ item.key }}'
+    value: '{{ item.value }}'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+    - { key: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+    - { key: net.bridge.bridge-nf-call-iptables, value: 1 }
+    - { key: net.ipv4.ip_forward, value: 1 }
+
+- name: Install `cri-o` Dependency.
+  yum:
+    name: cri-o
+    state: latest
+    update_cache: yes
+
+- name: Configure `cri-o` Subnet.
+  replace:
+    path: /etc/cni/net.d/100-crio-bridge.conf
+    regexp: '10\.85\.0\.0\/16'
+    replace: '{{ pod_network_cidr }}'
+  ignore_errors: True
+
+- name: Start & Enable `cri-o` Service.
+  service:
+    name: crio
+    state: restarted
+    enabled: yes

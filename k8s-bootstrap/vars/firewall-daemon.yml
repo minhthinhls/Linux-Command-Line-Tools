@@ -1,0 +1,57 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# 2379/tcp: Kubernetes etcd server client API (on master nodes in multi-master deployments)
+# 2380/tcp: Kubernetes etcd server client API (on master nodes in multi-master deployments)
+# 6443/tcp: Kubernetes API server (master nodes)
+# 8090/tcp: Platform Agent (master and worker nodes)
+# 8091/tcp: Platform API Server (operator node)
+# 8472/udp: Flannel overlay network, VxLAN backend (master and worker nodes)
+# 10250/tcp: Kubernetes kubelet API server (master and worker nodes)
+# 10251/tcp: Kubernetes kube-scheduler (on master nodes in multi-master deployments)
+# 10252/tcp: Kubernetes kube-controller-manager (on master nodes in multi-master deployments)
+# 10255/tcp: Kubernetes kubelet API server for read-only access with no authentication (master and worker nodes)
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Shared [Masters, Workers] Nodes firewall ports.
+k8s_shared_ports:
+  - 22/tcp
+  - 80/tcp
+  - 443/tcp
+  - 8090/tcp
+  - 10250/tcp
+  - 10255/tcp
+
+# Specific Master Nodes firewall ports.
+k8s_master_ports:
+  - 2379-2380/tcp
+  - 6443/tcp
+  - 10251/tcp
+  - 10252/tcp
+
+# Specific Worker Nodes firewall ports.
+k8s_worker_ports:
+  - 30000-32767/tcp
+
+docker_swarm_ports:
+  - 2375-2377/tcp # Cluster Management & Communications.
+  - 4789/udp # Overlay Network Traffic
+  - 7946/tcp # Communication among Nodes.
+  - 7946/udp # Communication among Nodes.
+
+# Calico CNI firewall ports.
+calico_ports:
+  - 179/tcp
+  - 4789/udp
+  - 5473/tcp
+
+# Flannel CNI firewall ports.
+flannel_ports:
+  - 8285/udp
+  - 8472/udp
+
+# Default pod subnet for Container Runtime Interface.
+pod_network_cidr:
+  - "10.85.0.0/16"
+  - "10.244.0.0/16"

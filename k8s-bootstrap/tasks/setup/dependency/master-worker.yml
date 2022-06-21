@@ -1,0 +1,147 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# @see {@link https://serverfault.com/questions/1073278/cannot-install-both-kubelet-1-18-4-0-x86-64-and-kubelet-1-21-3-0-x86-64}
+# @see {@link https://github.com/kubernetes/kubernetes/issues/92463#issuecomment-685400015}
+- name: Prevent [Update/Upgrade] Conflict for Kubernetes Machines within specific [Kubelet] versions
+  template:
+    src: "{{ inventory_dir }}/templates/yum.conf"
+    dest: "{{ item }}"
+  loop:
+    - /etc/yum.conf
+    - /etc/dnf/dnf.conf
+
+- name: Change File Permission for [YUM & DNF] Configure Packages Manager.
+  file:
+    path: "{{ item }}"
+    owner: "root"
+    group: "users"
+    mode: 'u=rwx,g=r,o=r'
+  loop:
+    - /etc/yum.conf
+    - /etc/dnf/dnf.conf
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 0 # Polling Interval (0 seconds ~ Concurrency Mode).
+
+- name: Install Yum Package Manager for Cluster Virtual Machines.
+  dnf:
+    name: yum
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+- name: Uninstall Deprecated YUM/DNF Packages for RHEL/CentOS 8.
+  yum:
+    name: "{{ item }}"
+    # @arguments [present, latest, absent]
+    state: absent
+    update_cache: true
+  loop:
+    - "{{ deprecated_packages }}"
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 0 # Polling Interval (0 seconds ~ Concurrency Mode).
+
+- name: '[HIGHEST PRIORITY] >> Install EPEL Release Package Manager.'
+  yum:
+    name: epel-release
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+- name: '[HIGHEST PRIORITY] >> Install [Dnf/Yum] Utils Package Manager.'
+  yum:
+    name: yum-utils
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+- name: '[HIGHEST PRIORITY] >> Upgrade All Yum Packages.'
+  yum:
+    name: "*"
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 0 # Polling Interval (0 seconds ~ Concurrency Mode).
+  when: yum_upgrade_package
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Basic Package Managers.
+# @see {@link https://www.makeuseof.com/fix-ifconfig-command-not-found-error-linux/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install Core Funtional Dependency YUM/DNF Packages for RHEL/CentOS 8.
+  yum:
+    name: "{{ item }}"
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  loop:
+    - "{{ functional_packages + core_packages }}"
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+- name: Install Container Daemon (Containerd) via YUM/DNF Packages for RHEL/CentOS 8.
+  include: "{{ inventory_dir }}/tasks/setup/cri/containerd.yml"
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+- name: Install Docker Community Edition via YUM/DNF Packages for RHEL/CentOS 8.
+  include: "{{ inventory_dir }}/tasks/setup/cri/docker.yml"
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+- name: Install Client-Docker-CE via YUM/DNF Packages for RHEL/CentOS 8.
+  yum:
+    name: "{{ item }}"
+    # @arguments [present, latest, absent]
+    state: present
+    update_cache: true
+  loop:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Install Kubernetes Repository to the Centos 8 Stream by running the following commands.
+# @see {@link https://thecodecloud.in/install-configure-kubernetes-k8s-cluster-centos-8-rhel-8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Add Kubernetes Repository to YUM/DNF Packages Manager.
+  template:
+    src: "../templates/repository/kubernetes.conf"
+    dest: /etc/yum.repos.d/kubernetes.repo
+
+- name: 'Install [`kubelet`, `kubeadm`, `kubectl`] packages for Master Nodes.'
+  vars:
+    K8S_VERSION: 1.24.2-00.x86_64
+  yum:
+    name:
+      - kubelet-{{ K8S_VERSION }}
+      - kubeadm-{{ K8S_VERSION }}
+      - kubectl-{{ K8S_VERSION }}
+    disable_excludes: kubernetes
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  when: "'master' in ansible_hostname"
+
+- name: 'Install [`kubelet`, `kubeadm`, `kubectl`] packages for Worker Nodes.'
+  vars:
+    K8S_VERSION: 1.24.2-00.x86_64
+  yum:
+    name:
+      - kubelet-{{ K8S_VERSION }}
+      - kubeadm-{{ K8S_VERSION }} # Package `kubeadm` will automatically pull `kubectl` as Dependency Package.
+      - kubectl-{{ K8S_VERSION }} # Will be automatically installed via Google Cloud SDK.
+    disable_excludes: kubernetes
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  when: "'worker' in ansible_hostname"

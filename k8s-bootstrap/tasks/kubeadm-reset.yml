@@ -1,0 +1,171 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+- name: Drain all Nodes within Kubernetes Cluster.
+  command: "kubectl drain {{ item }}.e8s.io --ignore-daemonsets --delete-local-data;"
+  loop: "{{ groups.masters + groups.workers }}"
+  ignore_errors: True
+  failed_when: False
+  delegate_to: master-01
+  run_once: yes
+  when: False # Currently Disable.
+
+- name: Delete all Nodes within Kubernetes Cluster.
+  command: "kubectl delete node {{ item }}.e8s.io;"
+  loop: "{{ groups.masters + groups.workers }}"
+  ignore_errors: True
+  failed_when: False
+  delegate_to: master-01
+  run_once: yes
+  when: False # Currently Disable.
+
+- name: Stop Kubelet.
+  systemd:
+    name: kubelet
+    state: stopped
+    enabled: yes
+    daemon_reload: yes
+
+- name: Unmount All Kubelet Pods Volume.
+  shell: umount --recursive /var/lib/kubelet/**/**/**/**/**
+  debugger: never # ["always", "never", "on_failed", "on_unreachable", "on_skipped"]
+  ignore_errors: True
+  failed_when: False
+  when: "'master' in ansible_hostname"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - The last `etcd` member cannot be removed via `kubeadm` CLIs.
+# @description: [Ansible] - Sometime `kubeadm` failed to unmount files within `/var/lib/kubelet/`. Retry until the process succeed.
+# @see {@link https://stackoverflow.com/questions/62062153/kubernetes-kubeadm-reset-error-unable-to-reset}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove Master Nodes Sequentially. Do not remove Master Nodes at the sametime [Concurrency / Parallel] Strategy.
+  shell: kubeadm reset --force
+  run_once: yes
+  delegate_to: "{{ item }}"
+  loop: "{{ groups.masters }}"
+
+- name: Remove Worker Nodes at the sametime via [Concurrency / Parallel] Strategy.
+  shell: kubeadm reset --force
+  when: "'worker' in ansible_hostname"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - How can I write Variables inside the Tasks File ?
+# @see {@link https://stackoverflow.com/questions/22522985/how-can-i-write-variables-inside-the-tasks-file-in-ansible#27976496}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set Variables for this specific Tasks Group.
+  set_fact:
+    cni_dir: /etc/cni/net.d/*
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - The last `etcd` member cannot be removed via `kubeadm` CLIs.
+# @description: [Ansible] - Thus we need to manually clean-up the following folders within `/var/lib/*`.
+# @see {@link https://stackoverflow.com/questions/62062153/kubernetes-kubeadm-reset-error-unable-to-reset}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove Container Network Interface Stable Configuration.
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ cni_dir }}"
+    - /etc/kubernetes/
+    - /$HOME/.kube/config
+    - /var/lib/cni/
+    - /var/lib/etcd/
+    - /var/lib/kubelet/
+    - /var/lib/dockershim/
+    - /var/run/kubernetes/
+  retries: 10 # Max Retry Number until Failed.
+  delay: 3 # Delay Seconds for each Retry.
+  ignore_errors: True
+  failed_when: False
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Sometime `kubeadm` failed to unmount files within `/var/lib/kubelet/`. Retry until the process succeed.
+# @see {@link https://stackoverflow.com/questions/62062153/kubernetes-kubeadm-reset-error-unable-to-reset}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Reset existing cluster
+  shell: kubeadm reset --force
+  retries: 10 # Max Retry Number until Failed.
+  delay: 3 # Delay Seconds for each Retry.
+  ignore_errors: True
+  failed_when: False
+  loop: "{{ range(0, 10) | list }}"
+  debugger: never # ["always", "never", "on_failed", "on_unreachable", "on_skipped"]
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - How to recursively delete Files and Folders inside Directory ?
+# @see {@link https://stackoverflow.com/questions/38200732/ansible-how-to-delete-files-and-folders-inside-a-directory#41837196}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove Container Network Interface Stable Configuration.
+  block:
+    - name: "Collect all Files within {{ cni_dir }}"
+      find:
+        paths: "{{ cni_dir }}"
+        hidden: True
+        recurse: True
+        # file_type: any  # Added in ansible 2.3
+      register: collected_files
+
+    - name: "Collect all Directories within {{ cni_dir }}"
+      find:
+        paths: "{{ cni_dir }}"
+        hidden: True
+        recurse: True
+        file_type: directory
+      register: collected_directories
+
+    - name: "Remove collected Files and Directories within {{ cni_dir }}"
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: >
+        {{
+          collected_files.files +
+          collected_directories.files
+        }}
+
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Failed to set bridge addr: “cni0“ already has an IP address different from [xxx.xxx.xxx.xxx] | Pods Network | Kubernetes - Code World.
+# @see {@link https://dzone.com/articles/configure-kubernetes-network-with-flannel}
+# @see {@link https://www.codetd.com/en/article/12782225}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Make CNIs Network Interface Down.
+  command: ifconfig {{ item }} down
+  ignore_errors: True
+  failed_when: False
+  no_log: True
+  loop:
+    - cni0
+    - flannel.1
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Hide failed log within Tasks. Please consider remove [failed_when] on Production Server.
+# @see {@link https://stackoverflow.com/questions/35723913/need-to-hide-failed-log-in-ansible-task#35724363}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove CNIs Network Interface.
+  command: ip link delete {{ item }}
+  ignore_errors: True
+  failed_when: False
+  no_log: True
+  loop:
+    - cni0
+    - flannel.1
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Resolve Error [ERROR CRI]: Container Runtime is not Running. Apply to all Cluster Nodes.
+# @description: Apply these [COMMAND] after deploying & linking Kubernetes Cluster.
+# @see {@link https://github.com/containerd/containerd/issues/4581}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove Container Daemon Default Configuration.
+  file:
+    path: /etc/containerd/config.toml
+    state: absent
+
+- name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
+  systemd:
+    name: containerd
+    state: restarted
+    daemon_reload: yes

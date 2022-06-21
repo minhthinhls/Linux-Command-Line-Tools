@@ -1,0 +1,21 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Install all Dependency Packages for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install all Dependency Packages for all [Master, Workers] Node.
+  include: "{{ inventory_dir }}/tasks/setup/dependency/master-worker.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+  delegate_to: masters, workers
+
+- name: Install all Dependency Packages for all [Load-Balancers] Node.
+  include: "{{ inventory_dir }}/tasks/setup/dependency/load-balancer.yml"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'load-balancer' in ansible_hostname"
+  delegate_to: load_balancers
+
+- name: Install Bash Alias within Shell for all [Load-Balancers && Masters && Workers] Node.
+  shell: "curl https://raw.githubusercontent.com/minhthinhls/Linux-Command-Line-Tools/master/workspace/.bashrc | tee ~/.bashrc"

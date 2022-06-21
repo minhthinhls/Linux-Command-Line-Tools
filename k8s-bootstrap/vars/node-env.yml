@@ -1,0 +1,17 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible-vars.json"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible-vars.json
+---
+git_token: "ghp_vxZTbKM4YHMBQhQGEXA9CABKUNWVKl42oE8S" # Github Personal Token for Pushing into Repository.
+k8s_version: "1.24"                                   # Kubernetes Version to be Installed.
+selinux_state: permissive                             # SELinux State [Mode::Permissive] on Kubernetes Nodes.
+timezone: "Atlantic/Azores"                           # Configure Timezone on all Cluster Nodes.
+k8s_cni: flannel                                      # Container Network Interface (CNIs): [Calico, Flannel].
+container_runtime: containerd                         # Container Runtime Interface (CRIs): [Docker, Cri-o, Containerd].
+control_plane_endpoint: "control-plane.e8s.io:6443"   # Control Plane Endpoints for High Availability Kubernetes Cluster.
+pod_network_cidr: "10.244.0.0/16"                     # Sub-network required for CRIs to enable Pods Communication.
+configure_firewalld: true                             # [boolean::true, false] (keep it false, k8s > v1.19 have issues with firewalld).
+yum_upgrade_package: true                             # Update the latest Yum Packages [Take too much time].
+# Docker proxy support
+setup_proxy: false                                    # Configure proxy Protocol for Docker Application.
+proxy_server: "proxy.example.com:8080"                # Set default Proxy Server Address and its Port.
+docker_proxy_exclude: "localhost,127.0.0.1"           # Excluded Addresses for Proxy Server.

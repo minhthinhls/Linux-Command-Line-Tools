@@ -1,0 +1,35 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Enable and Disable Root Login.
+# @see {@link https://stackoverflow.com/questions/68404640/use-ansible-playbook-to-enable-and-disable-root-login/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Enable Root Login
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "{{ item.pattern }}"
+    line: "{{ item.refactor }}"
+    state: present
+    backup: yes
+  become: yes
+  loop:
+    - { pattern: '^PermitRootLogin', refactor: "PermitRootLogin yes" }
+    - { pattern: '^PasswordAuthentication', refactor: "PasswordAuthentication yes" }
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Change Root User password automatically.
+# @see {@link https://www.ansiblepilot.com/articles/change-user-password-ansible-module-user/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Change Root Password
+  user:
+    name: root
+    state: present
+    password: "{{ PASSWORD | password_hash('sha512') }}"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Enable and Disable Root Login.
+# @see {@link https://stackoverflow.com/questions/68404640/use-ansible-playbook-to-enable-and-disable-root-login/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Restart SSH Daemon Handlers.
+  include: "{{ inventory_dir }}/handlers/restart-sshd.yml"

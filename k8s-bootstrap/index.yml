@@ -1,0 +1,58 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/playbook"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/playbook
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @reference: {@link https://github1s.com/tranductrinh/k8s/blob/main/setup-ha-etcd-cluster/playbook/k8s_cluster_playbook.yml}
+# @reference: {@link https://github1s.com/jmutai/k8s-pre-bootstrap/blob/HEAD/roles/kubernetes-bootstrap/tasks/main.yml}
+# @reference: {@link https://github1s.com/buildvirtual-git/kubernetes/blob/main/ansible-deploy-k8s/install-k8s.yml}
+# @reference: {@link https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ load_balancers, masters, workers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files:
+    - "{{ inventory_dir }}/vars/node-env.yml"
+    - "{{ inventory_dir }}/vars/cluster-info.yml"
+    - "{{ inventory_dir }}/vars/firewall-daemon.yml"
+
+  handlers:
+    - include: "{{ inventory_dir }}/handlers/restart-sshd.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the Specific Operating System Variables.
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    - name: |
+        1. Install Yum Package Manager for Cluster Virtual Machines.
+        2. Uninstall Deprecated YUM/DNF Packages for RHEL/CentOS 8.
+        3. Install Functional YUM/DNF Packages for RHEL/CentOS 8.
+        4. Install & Configure NGINX for Cluster Load Balancers.
+      include: "{{ inventory_dir }}/tasks/setup/dependency/index.yml"
+      when: False # Currently Disable.
+
+    - name: |
+        1. Load Required Modules into Linux Kernel.
+        2. Provision required systemctl params::[network-bridge, ip_v4_v6_forward].
+        3. Set [{httpd_can_network_connect: off}, {httpd_can_network_relay: on}].
+        4. Edit Kubernetes Admin Configurations and Restart Kubelet Service.
+      include: "{{ inventory_dir }}/tasks/setup/runtime/index.yml"
+      when: False # Currently Disable.
+
+    - name: |
+        1. Bootstrap Kubernetes Cluster Automatically.
+      include: "{{ inventory_dir }}/tasks/setup/kubernetes/index.yml"
+      when: True # Currently Disable.
+
+    # - name: Install Extra Utility YUM/DNF Packages for RHEL/CentOS 8.
+    #   include: yum-package.yml

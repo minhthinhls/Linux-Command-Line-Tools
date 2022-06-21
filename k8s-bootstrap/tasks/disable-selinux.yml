@@ -1,0 +1,42 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Disable Security Enhanced Linux for Kubernetes Installation by running the following Commands.
+# @see {@link https://www.howtoforge.com/tutorial/centos-kubernetes-docker-cluster/}
+# @see {@link https://www.techtransit.org/disable-enable-enforcing-selinux-ansible-playbook-reboot-host/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Disable SE-Linux Manually by running the following Commands.
+# @take-notes: Symlink creates virtual file mapping through alias.
+# @command >> sudo setenforce 0;
+# @command >> sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config;
+# @command >> sudo sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Delegate SELinux into Permissive mode, logging actions that would be blocked.
+  selinux:
+    state: permissive
+    policy: targeted
+  register: selinux_disabled
+
+- name: Print the changes in Configurtion file
+  command: grep SELINUX /etc/sysconfig/selinux
+  register: selinux_value
+
+- debug:
+    var: selinux_value.stdout_lines
+
+- name: Restart Server and wait until Server Running.
+  block:
+    - name: Wait for 5 Seconds and Reboot
+      shell: "sleep 5 && reboot"
+      async: 1 # Maximum allowed time (seconds).
+      poll: 0 # Polling Interval (0 seconds ~ Concurrency Mode).
+      when: selinux_disabled is changed
+
+    - name: Wait until the Reboot to complete when there was any changes.
+      wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 5
+        timeout: 300
+      when: selinux_disabled is changed
+
+  when: restart_server

@@ -1,0 +1,70 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ masters, workers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files: "{{ inventory_dir }}/vars/node-env.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Resolve Error [ERROR CRI]: Container Runtime is not Running. Apply to all Cluster Nodes.
+    # @description: Apply these [COMMAND] after deploying & linking Kubernetes Cluster.
+    # @see {@link https://github.com/containerd/containerd/issues/4581}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Remove Container Daemon Default Configuration.
+      file:
+        path: /etc/containerd/config.toml
+        state: absent
+
+    - name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
+      systemd:
+        name: containerd
+        state: restarted
+        daemon_reload: yes
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Failed to set bridge addr: “cni0“ already has an IP address different from [xxx.xxx.xxx.xxx] | Pods Network | Kubernetes - Code World.
+    # @see {@link https://dzone.com/articles/configure-kubernetes-network-with-flannel}
+    # @see {@link https://www.codetd.com/en/article/12782225}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Make CNIs Network Interface Down.
+      command: ifconfig cni0 down
+      ignore_errors: True
+
+    - name: Remove CNIs Network Interface.
+      command: ip link delete cni0
+      ignore_errors: True
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Not Supported Network for CentOS 8 Stream.
+    # @see {@link https://github.com/ansible/ansible/blob/devel/docs/docsite/rst/network/user_guide/platform_index.rst}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # - name: Make CNIs Network Interface Down.
+    #   net_interface:
+    #     name: cni0
+    #     description: '[Flannel && Calico] Network Interface.'
+    #     enabled: False
+
+    # - name: Remove CNIs Network Interface.
+    #   net_interface:
+    #     name: cni0
+    #     state: absent
+
+    - name: 'Restart service `kubelet`, in all cases.'
+      service:
+        name: kubelet
+        state: restarted

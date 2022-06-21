@@ -1,0 +1,9 @@
+---
+- name: Install Utility Packages required for configuring the Cluster Nodes.
+  yum:
+    name: "{{ item }}"
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  loop:
+    - "{{ core_packages }}"

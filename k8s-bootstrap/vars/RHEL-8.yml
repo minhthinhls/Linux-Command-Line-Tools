@@ -1,0 +1,40 @@
+# =============================================================================== #
+#                  New Generation of Container Management Tools                   #
+# @see {@link https://www.redhat.com/en/blog/say-hello-buildah-podman-and-skopeo} #
+# =============================================================================== #
+---
+deprecated_packages:
+  # Uninstall [Run-Container] && its dependency [Pod-man]
+  # Because [Docker] will conflict with [Pod-man] on RHEL v8.
+  # @see {@link https://access.redhat.com/discussions/5895421#comment-2066741}
+  - runc
+  - docker
+  - docker-client
+  - docker-client-latest
+  - docker-common
+  - docker-engine
+  - docker-latest
+  - docker-latest-logrotate
+  - docker-logrotate
+  - docker-selinux
+  # Remove [Run-Container], [Pod-man], [Build-ah] and other packages that conflict with Docker.
+  # @see {@link https://access.redhat.com/discussions/5895421#comment-2066741}
+  - "@container-tools"
+
+functional_packages:
+  - device-mapper-persistent-data
+  - bind-utils
+  - firewalld
+  - net-tools
+  - sipcalc
+  - screen
+  # @see {@link https://linuxways.net/centos/4-ways-to-check-memory-usage-in-centos-8/}
+  - htop
+  - lvm2
+  - npm
+  - git
+  - vim
+
+core_packages:
+  - python3
+  - python3-pip

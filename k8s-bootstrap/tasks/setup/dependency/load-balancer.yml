@@ -1,0 +1,85 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# @see {@link https://serverfault.com/questions/1073278/cannot-install-both-kubelet-1-18-4-0-x86-64-and-kubelet-1-21-3-0-x86-64}
+# @see {@link https://github.com/kubernetes/kubernetes/issues/92463#issuecomment-685400015}
+- name: Prevent [Update/Upgrade] Conflict for Kubernetes Machines within specific [Kubelet] versions
+  template:
+    src: "{{ inventory_dir }}/templates/yum.conf"
+    dest: "{{ item }}"
+  loop:
+    - /etc/yum.conf
+    - /etc/dnf/dnf.conf
+
+- name: Change File Permission for [YUM & DNF] Configure Packages Manager.
+  file:
+    path: "{{ item }}"
+    owner: "root"
+    group: "users"
+    mode: 'u=rwx,g=r,o=r'
+  loop:
+    - /etc/yum.conf
+    - /etc/dnf/dnf.conf
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 0 # Polling Interval (0 seconds ~ Concurrency Mode).
+
+- name: '[HIGHEST PRIORITY] >> Install EPEL Release Package Manager.'
+  yum:
+    name: epel-release
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+  when: False # Currently Disable.
+
+- name: '[HIGHEST PRIORITY] >> Install [Dnf/Yum] Utils Package Manager.'
+  yum:
+    name: yum-utils
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Basic Package Managers.
+# @see {@link https://www.makeuseof.com/fix-ifconfig-command-not-found-error-linux/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install Core Funtional Dependency YUM/DNF Packages for RHEL/CentOS 8.
+  yum:
+    name: "{{ item }}"
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  loop:
+    - "{{ functional_packages + core_packages }}"
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 2 # Polling Interval (seconds).
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Install NGINX Repository to the Centos 8 Stream by running the following commands.
+# @see {@link https://www.linuxcapable.com/how-to-install-latest-nginx-mainline-on-centos-8-stream/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Add NGINX Repository to YUM/DNF Packages Manager.
+  template:
+    src: "../templates/repository/nginx.conf"
+    dest: /etc/yum.repos.d/nginx.repo
+
+- name: 'Install [`NGINX`] packages for Load-Balancer Nodes.'
+  yum:
+    name: nginx
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  when: "'load-balancer' in ansible_hostname"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Configure Firewall Rules. Must provide Root Privileges.
+# @see {@link https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-8}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install `firewalld`.
+  yum:
+    name: firewalld
+    state: present

@@ -1,0 +1,12 @@
+---
+- name: Wait for 5 Seconds and Reboot
+  shell: "sleep 5 && reboot"
+  async: 1 # Maximum allowed time (seconds).
+  poll: 0 # Polling Interval (0 seconds ~ Concurrency Mode).
+
+- name: Wait until the Reboot to complete.
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300

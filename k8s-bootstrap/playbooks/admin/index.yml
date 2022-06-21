@@ -1,0 +1,46 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Import Playbooks into Single Execution File.
+# @see {@link https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Local library module fails to import and breaks Playbook.
+# @see {@link https://github.com/ansible/ansible/issues/65780}
+# @description: [Ansible] - Import Playbook from child directory break var Scope.
+# @see {@link https://github.com/ansible/ansible/issues/65780}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply this file via the following Commands.
+# @command >> sudo cd /root/Linux-Command-Line-Tools/k8s-bootstrap/;
+# @command >> sudo ansible-playbook -i hosts.yml playbooks/admin/index.yml;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ localhost ]
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: local
+  vars_files:
+    - "{{ inventory_dir }}/vars/node-env.yml"
+    - "{{ inventory_dir }}/vars/cluster-info.yml"
+    - "{{ inventory_dir }}/vars/firewall-daemon.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    - name: Change SSH Key-File Permission for resolving [Ansible] WARNING.
+      include: "{{ inventory_dir }}/playbooks/admin/tasks/patch-keyfile-permission.yml"
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Ansible] - SSH error connection into new Domain.
+    # @see {@link https://stackoverflow.com/questions/19766638/ssh-error-in-connection-to-a-new-domain}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Remove All SSH Known Hosts within Administrator Machines.
+      include: "{{ inventory_dir }}/playbooks/admin/tasks/remove-ssh-known-hosts.yml"

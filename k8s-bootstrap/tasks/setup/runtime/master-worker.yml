@@ -1,0 +1,198 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Strip out Comments and Blank Lines with Grep.
+# @see {@link https://www.linuxtrainingacademy.com/strip-out-comments-blank-lines-grep/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- debug:
+    msg: "{{ item }}"
+  with_lines:
+    - cat "{{ inventory_dir }}/templates/k8s-kernel-modules.conf" | grep -Ev "^#|^$";
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Enable [`br_netfilter`, `overlay`] Kernel Module.
+# @description: To facilitate Virtual Extensible LAN (VxLAN) traffic for communication between Kubernetes pods across the Cluster Nodes.
+# @see {@link https://www.tecmint.com/install-a-kubernetes-cluster-on-centos-8/}
+# @see {@link https://thecodecloud.in/install-configure-kubernetes-k8s-cluster-centos-8-rhel-8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Make sure [`br_netfilter`] Kernel Module during Real-time Session Phase (without Reboot).
+# @check-result >> sudo lsmod | grep br_netfilter;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Load Required Modules into Linux Kernel.
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_lines:
+    - cat "{{ inventory_dir }}/templates/k8s-kernel-modules.conf" | grep -Ev "^#|^$";
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Enable [`br_netfilter`, `overlay`] Kernel Module during Reboot Phase.
+# @description: To facilitate Virtual Extensible LAN (VxLAN) traffic for communication between Kubernetes pods across the Cluster Nodes.
+# @see {@link https://unix.stackexchange.com/questions/189670/whats-the-difference-of-etc-modules-load-d-and-etc-modules/}
+# @see {@link https://freedesktop.org/software/systemd/man/modules-load.d.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Load Required Modules into Linux Kernel during Reboot Phase.
+  template:
+    src: "{{ inventory_dir }}/templates/k8s-kernel-modules.conf"
+    dest: "{{ item }}"
+  loop:
+    - /etc/modules-load.d/99-kubernetes-cri.conf
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Enable [`network-bridge`, `ip_v4_v6_forward`] Kernel Module during Real-time Session Phase.
+# @see {@link https://thecodecloud.in/install-configure-kubernetes-k8s-cluster-centos-8-rhel-8/}
+# @see {@link https://www.tecmint.com/install-a-kubernetes-cluster-on-centos-8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @take-notes: You can Manually provision Bridge Network and IP Forward via following commands.
+# @command >> sysctl net.bridge.bridge-nf-call-iptables=1;
+# @command >> echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables;
+# @check-result >> cat /proc/sys/net/bridge/bridge-nf-call-iptables;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply [`systemctl`] Kernel Module during Real-time Session Phase (without Reboot).
+# @check-result >> sudo sysctl --load --system;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Provision required systemctl params::[network-bridge, ip_v4_v6_forward] settings immediately without Reboot.
+  sysctl:
+    name: '{{ item.key }}'
+    value: '{{ item.value }}'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  ignore_errors: true
+  loop:
+    - { key: net.bridge.bridge-nf-call-arptables, value: 1 }
+    - { key: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+    - { key: net.bridge.bridge-nf-call-iptables, value: 1 }
+    - { key: net.ipv4.ip_forward, value: 1 }
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Enable [`network-bridge`, `ip_v4_v6_forward`] Kernel Module during Reboot Phase.
+# @see {@link https://thecodecloud.in/install-configure-kubernetes-k8s-cluster-centos-8-rhel-8/}
+# @see {@link https://www.tecmint.com/install-a-kubernetes-cluster-on-centos-8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Provision required systemctl params::[network-bridge, ip_v4_v6_forward] settings persist after Reboot.
+  template:
+    src: "{{ inventory_dir }}/templates/iptables-bridge-traffic.conf"
+    dest: "{{ item }}"
+  loop:
+    - /etc/sysctl.d/99-kubernetes-cri.conf
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [502 Error] Bad Gateway with NGINX on Server behind Corporate Proxy.
+# @see {@link https://stackoverflow.com/questions/69528071/502-error-bad-gateway-with-nginx-on-a-server-behind-corporate-proxy}
+# @description: [13 Permission Denied] with NGINX Upstream Forwarded Proxy.
+# @see {@link https://stackoverflow.com/questions/23948527/13-permission-denied-while-connecting-to-upstreamnginx}
+# @description: Security-Enhanced HTTP Daemon References.
+# @see {@link https://linux.die.net/man/8/httpd_selinux}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Check for HTTP Daemon SELinux Error Logs.
+# @command >> sudo cat /var/log/audit/audit.log | grep nginx | grep denied;
+# @description: Add Security-Enhanced Managed Ports as HTTP Type.
+# @command >> sudo semanage port --type http_port_t --proto tcp --add 8443;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Allow HTTP Daemon Scripts and Modules connect to the Network using TCP.
+# @details: Enable this allow NGINX to forward [STREAM / HTTP] directly to <HOST-MACHINE>:<PORT>.
+# @command >> sudo setsebool -P httpd_can_network_connect 0;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set httpd_can_network_connect flag off and keep it persistent across Reboots.
+  seboolean:
+    name: httpd_can_network_connect
+    state: no
+    persistent: yes
+  ignore_errors: True # ModuleNotFoundError: 'semanage' is present in the Mitogen importer blacklist.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Allow httpd to act as Network Relay.
+# @details: Enable this allow NGINX to forward [STREAM / HTTP] only into <INTERNAL-NETWORK>:<PORT>.
+# @command >> sudo setsebool -P httpd_can_network_relay 1;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set httpd_can_network_relay flag on and keep it persistent across Reboots.
+  seboolean:
+    name: httpd_can_network_relay
+    state: yes
+    persistent: yes
+  ignore_errors: True # ModuleNotFoundError: 'semanage' is present in the Mitogen importer blacklist.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Strip out Comments and Blank Lines with Grep.
+# @see {@link https://www.linuxtrainingacademy.com/strip-out-comments-blank-lines-grep/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- debug:
+    msg: "{{ item }}"
+  with_lines:
+    - getsebool -a | grep httpd_can_network;
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Configure Firewall Daemon Rules for [Master && Worker] Nodes.
+# @see {@link https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Setup Firewall within Kubernetes Cluster Machines.
+  include: "{{ inventory_dir }}/tasks/setup/firewall-daemon.yml"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Resolve Error [ERROR CRI]: Container Runtime is not Running. Apply to all Cluster Nodes.
+# @description: Apply these [COMMAND] after deploying & linking Kubernetes Cluster.
+# @see {@link https://github.com/containerd/containerd/issues/4581}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove Container Daemon Default Configuration.
+  file:
+    path: /etc/containerd/config.toml
+    state: absent
+
+- name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
+  systemd:
+    name: containerd
+    state: restarted
+    daemon_reload: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: No networks found in `/etc/cni/net.d`.
+# @see {@link https://github.com/kubernetes/kubernetes/issues/54918#issuecomment-408278160}
+# @description: Due to the proxy issues. Kubelet cannot connect to the kube-api-server through configured HTTP Proxy.
+# @see {@link https://github.com/kubernetes/kubernetes/issues/54918#issuecomment-385162637}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Recursively change Ownership and Access Time of given Directory.
+  file:
+    path: /etc/cni/net.d/
+    state: directory
+    recurse: yes
+    owner: root
+    mode: u=rwx,g=r,o=r
+    modification_time: now
+    access_time: now
+
+- name: 'Enable `kubelet` Service'
+  service:
+    name: kubelet
+    enabled: yes
+
+- name: 'Start service `kubelet`, if not started.'
+  service:
+    name: kubelet
+    state: started
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Kubelet will not work with enabled swap.
+# @see {@link https://github.com/kubernetes/kubernetes/issues/53333}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: The Kubelet Daemon Config Files for CentOS 8 Stream changed into.
+# @see {@link https://github.com/kubernetes/kubeadm/issues/1575#issuecomment-496432739}
+# @see {@link https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64/repodata/filelists.xml}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Edit `kubeadm.conf` for [Master && Worker] Nodes.
+  blockinfile:
+    # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+    block: Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false"
+
+- name: Force `systemd` reloading all configurations `(Ansible v2.4+)`
+  systemd:
+    daemon_reload: yes
+
+- name: 'Restart service `kubelet`, in all cases.'
+  service:
+    name: kubelet
+    state: restarted

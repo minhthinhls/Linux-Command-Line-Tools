@@ -56,8 +56,8 @@ variable "keep_alived_instances" {
 
 variable "load_balancer_instances" {
     default = {
-        reserved_external_ips = 1
-        number_instances = 1
+        reserved_external_ips = 2
+        number_instances = 2
     }
 }
 

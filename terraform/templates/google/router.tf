@@ -5,6 +5,7 @@
 # @see {@link https://cloud.google.com/architecture/patterns-for-floating-ip-addresses-in-compute-engine/}
 # @see {@link https://github1s.com/GoogleCloudPlatform/solutions-floating-ip-patterns-terraform/}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
 resource "google_compute_route" "kubernetes_external_network_router_01" {
     name            = "kubernetes-external-network-router-01"
     network         = google_compute_network.main_network.name
@@ -17,7 +18,6 @@ resource "google_compute_route" "kubernetes_external_network_router_01" {
     priority        = 100
 }
 
-/*
 resource "google_compute_route" "kubernetes_external_network_router_02" {
     name            = "kubernetes-external-network-router-02"
     network         = google_compute_network.main_network.name

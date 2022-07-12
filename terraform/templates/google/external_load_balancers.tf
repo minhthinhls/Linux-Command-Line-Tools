@@ -28,6 +28,13 @@ resource "google_compute_target_pool" "internal_load_balancers_target_pool" {
     ]
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Import Google Cloud Resource Instances into Terraform State Manager.
+# @command >> terraform import google_compute_forwarding_rule.external_network_load_balancers[0] external-network-load-balancers-01;
+# @command >> terraform state rm google_compute_forwarding_rule.external_network_load_balancers[0]; # Delete Indexed Instance.
+# @command >> terraform state rm google_compute_forwarding_rule.external_network_load_balancers; # Delete All Instances.
+# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_forwarding_rule#import}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_forwarding_rule" "external_network_load_balancers" {
     count                 = 1 # Switch to [1] to provision again.
     depends_on            = [google_compute_address.keep_alived_instances, google_compute_instance.load-balancers]

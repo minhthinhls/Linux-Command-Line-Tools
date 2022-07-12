@@ -22,6 +22,13 @@ output "external_network_address_translation_instances" {
     value = google_compute_address.external_network_address_translation_instances.*.address
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Import Google Cloud Resource Instances into Terraform State Manager.
+# @command >> terraform import google_compute_address.keep_alived_instances[0] keep-alived-01;
+# @command >> terraform state rm google_compute_address.keep_alived_instances[0]; # Delete Indexed Instance.
+# @command >> terraform state rm google_compute_address.keep_alived_instances; # Delete All Instances.
+# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_address#import}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_address" "keep_alived_instances" {
     count           = var.keep_alived_instances.reserved_external_ips # Switch to [1] to provision again.
     name            = "keep-alived-0${count.index + 1}"

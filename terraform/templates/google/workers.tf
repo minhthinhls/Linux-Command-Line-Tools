@@ -47,6 +47,7 @@ resource "google_compute_instance" "workers" {
 
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance}
     boot_disk {
+        auto_delete = false # Must not delete Boot Disk when Instance got terminated.
         device_name = "SSD-Worker-0${count.index + 1}"
         source = google_compute_disk.workers[count.index].name
     }
@@ -59,6 +60,12 @@ resource "google_compute_instance" "workers" {
         access_config {
             nat_ip = try(google_compute_address.workers[count.index].address, "")
         }
+    }
+
+    service_account {
+        # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+        email  = local.service_account["client_email"]
+        scopes = ["cloud-platform"]
     }
 
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}
@@ -101,6 +108,7 @@ resource "google_compute_instance" "private-workers" {
 
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance}
     boot_disk {
+        auto_delete = false # Must not delete Boot Disk when Instance got terminated.
         device_name = "SSD-Worker-0${count.index + var.worker_instances.reserved_external_ips + 1}"
         source = google_compute_disk.workers[count.index + var.worker_instances.reserved_external_ips].name
     }
@@ -110,6 +118,12 @@ resource "google_compute_instance" "private-workers" {
         network     = google_compute_network.main_network.self_link
         subnetwork  = google_compute_subnetwork.sub_network.self_link
         network_ip  = "172.16.2.${count.index + var.worker_instances.reserved_external_ips + 1}"
+    }
+
+    service_account {
+        # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+        email  = local.service_account["client_email"]
+        scopes = ["cloud-platform"]
     }
 
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}

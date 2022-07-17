@@ -135,35 +135,39 @@ spec:
             - --cert-dir=/tmp
             - --secure-port=8443
             # ----------------------------------------------------------------------------------------------------------------------------------------------------
-            # @description: [Ansible] - By Default `kubectl` looks for file named `config` in the `$HOME/.kube` directory.
+            # @description: Metrics Server [[Live-ness & Readiness]] failed on working properly.
+            # @see {@link https://stackoverflow.com/questions/59969791/metrics-server-not-working-in-kubernetes-cluster/}
             # @see {@link https://stackoverflow.com/questions/68648198/metrics-service-in-kubernetes-not-working/}
             # ----------------------------------------------------------------------------------------------------------------------------------------------------
             - --kubelet-insecure-tls=true
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --kubelet-use-node-status-port
-            - --metric-resolution=15s
+            - --metric-resolution=30s # [30 seconds] instead of default [15 seconds]
           image: k8s.gcr.io/metrics-server/metrics-server:v0.6.1
           imagePullPolicy: IfNotPresent
           livenessProbe:
-            failureThreshold: 3
+            failureThreshold: 30
             httpGet:
               path: /livez
               port: https
               scheme: HTTPS
+            initialDelaySeconds: 0
             periodSeconds: 10
+            timeoutSeconds: 2
           name: metrics-server
           ports:
             - containerPort: 8443
               name: https
               protocol: TCP
           readinessProbe:
-            failureThreshold: 3
+            failureThreshold: 30
             httpGet:
               path: /readyz
               port: https
               scheme: HTTPS
             initialDelaySeconds: 20
             periodSeconds: 10
+            timeoutSeconds: 2
           resources:
             requests:
               cpu: 100m
@@ -178,6 +182,12 @@ spec:
               name: tmp-dir
       nodeSelector:
         kubernetes.io/os: linux
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Kubernetes Cluster Configuration via YAML Structure.
+      # @see {@link https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/}
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # dnsPolicy: ClusterFirst
+      # hostNetwork: true
       priorityClassName: system-cluster-critical
       serviceAccountName: metrics-server
       volumes:

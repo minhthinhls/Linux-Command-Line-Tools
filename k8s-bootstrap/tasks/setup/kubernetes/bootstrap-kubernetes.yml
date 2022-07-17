@@ -162,18 +162,6 @@
         --token {{ token }}
         --discovery-token-ca-cert-hash {{ token_hash }}
 
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------
-    # @description: The Kubelet Daemon Config Files for CentOS 8 Stream changed into.
-    # @see {@link https://github.com/kubernetes/kubeadm/issues/1575#issuecomment-496432739}
-    # @see {@link https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64/repodata/filelists.xml}
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: Edit `kubeadm.conf` for Worker Nodes.
-      blockinfile:
-        # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-        path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-        block: |
-          Environment="KUBELET_EXTRA_ARGS=--node-ip={{ inventory_hostname }}"
-
     - name: Restart kubelet service
       service:
         name: kubelet
@@ -267,6 +255,10 @@
     src: /etc/kubernetes/admin.conf
     dest: ~/.kube/config
 
+- name: Suspend 2 seconds before deploying Kubernetes Metrics Server.
+  pause:
+    seconds: 2
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: [Add / Deploy] Metrics Server to Kubernetes Cluster.
 # @see {@link https://computingforgeeks.com/how-to-deploy-metrics-server-to-kubernetes-cluster/}
@@ -279,3 +271,22 @@
     module: shell
     _raw_params: kubectl apply --filename {{ inventory_dir }}/resources/kubernetes/metrics-server-v0.6.1.yaml
   run_once: yes
+
+- name: Set Default [Kube-Context] and [Kube-Environment].
+  connection: local
+  delegate_to: localhost
+  shell: kubens kube-system
+  run_once: yes
+
+- name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
+  systemd:
+    name: containerd
+    state: restarted
+    daemon_reload: yes
+  when: False # Currently Disable.
+
+- name: 'Restart service `kubelet`, in all cases.'
+  service:
+    name: kubelet
+    state: restarted
+  when: False # Currently Disable.

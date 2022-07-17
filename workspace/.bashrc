@@ -16,6 +16,20 @@ alias rm="rm -i";
 alias mv="mv -i";
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Kill Login Session for Linux Virtual Machines.
+# @see: {@link https://snubmonkey.com/how-to-kill-user-tty-pts-sessions-in-linux/}
+# [COMMAND] > kill-login-session [SESSION_NAME]
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+alias kill-login-session='kill_login_session() {
+  echo "----- START KILLING $1 SESSION -----";
+  pkill -9 --terminal "$1";
+  # kill -9 $(ps -ft "$1" | grep "bash" | awk "{print $2}");
+  echo "----- FINISH KILLING $1 SESSION -----";
+  unset -f kill_login_session;
+  return 1;
+}; kill_login_session';
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Grab the [Public && Private] IP Addresses of the Virtual Machine Server.
 # [COMMAND] > host-ipv4
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -298,7 +312,43 @@ alias replace='replace() {
   return 1; exit;
 }; replace';
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Extra [COMMAND] for further usage.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible [Public && Private] SSH Checks of the Virtual Machine Status.
+# [COMMAND] > ansible-ping [HOST_GROUP] > ansible-ping masters,workers
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+alias ansible-ping='ansible_ping() {
+  echo "----- CHECK ANSIBLE HOST MACHINES -----";
+  ansible --inventory-file hosts.yml --module-name ping "$1";
+  unset -f ansible_ping;
+  return 1;
+}; ansible_ping';
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Proxy SSH through Bastion Virtual Machines to access Private Cluster Machines.
+# @see: {@link https://goteleport.com/blog/security-hardening-ssh-bastion-best-practices/}
+# @see: {@link https://www.redhat.com/sysadmin/ssh-proxy-bastion-proxyjump/}
+# [COMMAND] > proxy-ssh [BASTION_MACHINE] [DESTINATION_MACHINE]
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+alias proxy-ssh='proxy_client_ssh() {
+  echo "----- BEGIN PROXY SSH THROUGH BASTION MACHINES -----";
+  ssh admin.e8s.io@"$2" \
+  -o StrictHostKeyChecking=no \
+  -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
+  -o ProxyCommand=" \
+    ssh \
+    -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
+    -o StrictHostKeyChecking=no \
+    -q admin.e8s.io@"$1" \
+    -W %h:%p \
+  ";
+
+  unset -f proxy_client_ssh;
+  return 1;
+}; proxy_client_ssh';
 
 # @see {@link https://www.linode.com/docs/guides/how-to-install-python-on-centos-8/}
 alias py="python3";

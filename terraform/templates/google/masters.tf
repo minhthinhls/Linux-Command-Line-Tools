@@ -45,6 +45,7 @@ resource "google_compute_instance" "masters" {
 
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance}
     boot_disk {
+        auto_delete = false # Must not delete Boot Disk when Instance got terminated.
         device_name = "SSD-Master-0${count.index + 1}"
         source = google_compute_disk.masters[count.index].name
     }
@@ -57,6 +58,12 @@ resource "google_compute_instance" "masters" {
         access_config {
             nat_ip = try(google_compute_address.masters[count.index].address, "")
         }
+    }
+
+    service_account {
+        # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+        email  = local.service_account["client_email"]
+        scopes = ["cloud-platform"]
     }
 
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}

@@ -131,6 +131,11 @@ spec:
         k8s-app: metrics-server
     spec:
       containers:
+        # - command:
+        #   - /metrics-server
+        #   - --cert-dir=/tmp
+        #   - --secure-port=8443
+        #   - ...
         - args:
             - --cert-dir=/tmp
             - --secure-port=8443

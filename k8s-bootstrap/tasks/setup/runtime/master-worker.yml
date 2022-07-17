@@ -186,7 +186,16 @@
   blockinfile:
     # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
     path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-    block: Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false"
+    block: Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false --node-ip={{ inventory_hostname }}"
+  when: False # Currently Disable.
+
+- name: Edit `kubeadm.conf` for [Master && Worker] Nodes.
+  vars:
+    CLOUD_PROVIDER: "gce"
+    NODE_IP: "{{ inventory_hostname }}"
+  template:
+    src: "{{ inventory_dir }}/templates/kubeadm.conf"
+    dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
 
 - name: Force `systemd` reloading all configurations `(Ansible v2.4+)`
   systemd:

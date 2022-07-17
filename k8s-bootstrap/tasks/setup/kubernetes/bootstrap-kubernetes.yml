@@ -20,6 +20,26 @@
     state: directory
     mode: 0755
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
+# @see {@link https://docs.openshift.com/container-platform/3.11/install_config/configuring_gce.html}
+# @see {@link https://medium.com/codex/kubernetes-cluster-on-gce-beyond-kubeadm-4a954935e2c8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Provide Kubernetes Cloud Configuration within Google Cloud Compute Engine.
+# @see {@link https://stackoverflow.com/questions/67600909/how-to-add-external-gcp-loadbalancer-to-kubespray-cluster/}
+# @see {@link https://github.com/kubernetes/ingress-nginx/issues/462#issuecomment-332334787}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Add Kubernetes Cloud Configuration into Initial Master Node.
+  template:
+    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    dest: /etc/kubernetes/google-compute-engine.conf
+  vars:
+    GCP_PROJECT_ID: "{{ gcp_project_id }}"
+    NODE_TAGS: "{{ ansible_hostname }}"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+
 - name: Add Kubernetes Admin Configuration into Initial Master Node.
   template:
     src: "{{ inventory_dir }}/resources/kubernetes/kubeadm-config.yaml"

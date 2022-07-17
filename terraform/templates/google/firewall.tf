@@ -29,7 +29,7 @@ resource "google_compute_firewall" "kubernetes-shared-ports" {
     network = google_compute_network.main_network.name
     allow {
         protocol = "tcp"
-        ports    = ["8090", "10250", "10255"]
+        ports    = ["8090", "10250", "10255", "10256"] # [10256] Google External Load Balancer Health Checks.
     }
     allow {
         protocol = "udp"

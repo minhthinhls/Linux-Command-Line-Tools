@@ -43,6 +43,8 @@
   run_once: yes
   delegate_to: "{{ item }}"
   loop: "{{ groups.masters }}"
+  ignore_errors: True
+  failed_when: False
 
 - name: Remove Worker Nodes at the sametime via [Concurrency / Parallel] Strategy.
   shell: kubeadm reset --force

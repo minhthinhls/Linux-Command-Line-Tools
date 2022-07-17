@@ -7,7 +7,16 @@ provider "google" {
     credentials = file("service-account.json")
     project = "kubernetes-e8s-io"
     region  = var.region
-    zone    = "${var.region}-a"
+    zone    = var.zone
+}
+
+variable "service_account" {
+    type    = string
+    default = "kubernetes-manager@kubernetes-e8s-io.iam.gserviceaccount.com"
+}
+
+locals {
+    service_account = jsondecode(file("service-account.json"))
 }
 
 variable "gce_ssh_user" {
@@ -27,6 +36,11 @@ variable "region" {
     type    = string
     default = "asia-east2" # HongKong
     # default = "asia-southeast1" # Singapore
+}
+
+variable "zone" {
+    type    = string
+    default = "asia-east2-a" # HongKong [Zone::A].
 }
 
 # @command >> gcloud auth login --no-launch-browser

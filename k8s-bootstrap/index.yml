@@ -26,6 +26,27 @@
   handlers:
     - include: "{{ inventory_dir }}/handlers/restart-sshd.yml"
 
+  pre_tasks:
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Ansible] - SSH error connection into new Domain.
+    # @see {@link https://stackoverflow.com/questions/19766638/ssh-error-in-connection-to-a-new-domain}
+    # @take-note: Use either [connection:local, delegate_to:localhost, local_action:module] to perform Ansible Local Machine Action.
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Remove All Known Hosts.
+      connection: local
+      delegate_to: localhost
+      local_action:
+        module: known_hosts
+        name: "{{ item.host }}"
+        path: /$HOME/.ssh/known_hosts
+        state: absent
+      vars:
+        extra_nodes:
+          - { host: "bastion-ingress.e8s.io" }
+          - { host: "cluster-ingress.e8s.io" }
+      loop: '{{ k8s_nodes + extra_nodes }}'
+      run_once: yes
+
   tasks:
     # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
     - name: Add the Specific Operating System Variables.
@@ -53,6 +74,3 @@
         1. Bootstrap Kubernetes Cluster Automatically.
       include: "{{ inventory_dir }}/tasks/setup/kubernetes/index.yml"
       when: True # Currently Disable.
-
-    # - name: Install Extra Utility YUM/DNF Packages for RHEL/CentOS 8.
-    #   include: yum-package.yml

@@ -182,11 +182,6 @@
 # @see {@link https://github.com/kubernetes/kubeadm/issues/1575#issuecomment-496432739}
 # @see {@link https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64/repodata/filelists.xml}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-- name: Edit `kubeadm.conf` for [Master && Worker] Nodes.
-  blockinfile:
-    # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-    path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-    block: Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false"
 
 - name: Force `systemd` reloading all configurations `(Ansible v2.4+)`
   systemd:

@@ -20,6 +20,12 @@
     state: directory
     mode: 0755
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
+# @see {@link https://docs.openshift.com/container-platform/3.11/install_config/configuring_gce.html}
+# @see {@link https://medium.com/codex/kubernetes-cluster-on-gce-beyond-kubeadm-4a954935e2c8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
 - name: Add Kubernetes Admin Configuration into Initial Master Node.
   template:
     src: "{{ inventory_dir }}/resources/kubernetes/kubeadm-config.yaml"
@@ -161,18 +167,6 @@
         kubeadm join {{ control_plane_endpoint }}
         --token {{ token }}
         --discovery-token-ca-cert-hash {{ token_hash }}
-
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------
-    # @description: The Kubelet Daemon Config Files for CentOS 8 Stream changed into.
-    # @see {@link https://github.com/kubernetes/kubeadm/issues/1575#issuecomment-496432739}
-    # @see {@link https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64/repodata/filelists.xml}
-    # ----------------------------------------------------------------------------------------------------------------------------------------------------
-    - name: Edit `kubeadm.conf` for Worker Nodes.
-      blockinfile:
-        # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-        path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-        block: |
-          Environment="KUBELET_EXTRA_ARGS=--node-ip={{ inventory_hostname }}"
 
     - name: Restart kubelet service
       service:

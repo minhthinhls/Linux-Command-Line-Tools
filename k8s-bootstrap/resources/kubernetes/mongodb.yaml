@@ -32,10 +32,47 @@ data:
   mongodb_server: mongodb-service # Service can be accessed via Global Namespace.
 
 ---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: GKE PersistentVolumeClaim for storageClassName "standard" reserved pending state forever.
+# @see {@link https://stackoverflow.com/questions/58708734/gke-persistentvolumeclaim-for-storageclassname-standard-is-in-pending-state-fo#58708796}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb
+spec:
+  storageClassName: "gce-pd"
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 20Gi
+  gcePersistentDisk:
+    pdName: mongodb # This GCE PD must already exist.
+    fsType: ext4
+  persistentVolumeReclaimPolicy: Delete # ["Delete", "Recycle", "Retain"]
+  claimRef:
+    name: mongodb
+    namespace: mongodb-namespace
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb
+  namespace: mongodb-namespace
+spec:
+  accessModes:
+    - ReadWriteOnce # ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+  storageClassName: "" # ["gce-pd"]
+  resources:
+    requests:
+      storage: 20Gi
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongodb-deployment
+  name: mongodb
   # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
   namespace: mongodb-namespace
   labels:
@@ -67,6 +104,13 @@ spec:
                 secretKeyRef:
                   name: mongodb-secret
                   key: mongo-root-password
+          volumeMounts:
+            - name: database
+              mountPath: /data/db/
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: mongodb
 
 ---
 apiVersion: v1
@@ -91,7 +135,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongo-express-deployment
+  name: mongo-express
   # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
   namespace: mongodb-namespace
   labels:
@@ -154,6 +198,22 @@ spec:
       port: 27027
       # [Kubernetes Cluster] - Deployment (Pods) Port.
       targetPort: 80
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mongo-express
+  # @describe: `kubectl describe certificate --namespace mongodb-namespace`.
+  # @describe: `kubectl get secrets --namespace mongodb-namespace`.
+  namespace: mongodb-namespace
+spec:
+  dnsNames:
+    - mongo-express.e8s.io
+  secretName: mongo-express-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
 
 ---
 apiVersion: networking.k8s.io/v1

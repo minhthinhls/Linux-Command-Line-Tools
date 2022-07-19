@@ -254,7 +254,28 @@ alias k8s-logs='__Deployment_Describe__() {
 }; __Deployment_Describe__';
 
 # [COMMAND] > k8s-exec | > k8s-exec [DEPLOYMENT]
-alias k8s-exec='__Deployment_Execution__() {
+alias k8s-exec='__Pod_Shell_Execution__() {
+  if [ "$#" -eq 0 ]; then
+    echo ">>> PLEASE SPECIFY [POD_NAME] AS FIRST ARGUMENT <<<";
+    return 1;
+  fi
+  local pods="$(
+    kubectl get pods \
+    --all-namespaces \
+    --output custom-columns=":metadata.name" \
+    --no-headers     \
+    | grep "$1"      \
+    | head --lines 1 ;
+  )";
+  local namespace="$(kubens --current)";
+  echo ">>> DEBUG -- [POD: $pods] -- [NAMESPACE: $namespace]";
+  kubectl exec --namespace "$namespace" -it "$pods" -- /bin/bash;
+  unset -f __Pod_Shell_Execution__;
+  return 1;
+}; __Pod_Shell_Execution__';
+
+# [COMMAND] > k8s-deployment-exec | > k8s-exec [DEPLOYMENT]
+alias k8s-deployment-exec='__Deployment_Execution__() {
   if [ "$#" -eq 0 ]; then
     echo ">>> PLEASE SPECIFY [DEPLOYMENT] AS FIRST ARGUMENT <<<";
     return 1;

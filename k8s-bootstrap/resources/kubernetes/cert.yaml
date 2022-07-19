@@ -1,3 +1,14 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  # [ALTERNATIVE COMMAND] > kubectl create namespace [NAMESPACE]
+  name: mongodb-namespace
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml
+  labels:
+    name: mongodb-namespace
+
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

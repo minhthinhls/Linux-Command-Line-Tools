@@ -9,3 +9,36 @@
     - "ansible_facts['distribution'] == 'CentOS'"
     - "'master' in ansible_hostname or 'worker' in ansible_hostname"
   delegate_to: masters, workers
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Bootstrap Kubernetes Cluster Dependency for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install Kubernetes Cluster Dependency for all [Master, Workers] Node.
+  connection: local
+  delegate_to: localhost
+  shell: kubectl apply --filename {{ item }}
+  loop:
+    - https://raw.githubusercontent.com/longhorn/longhorn/v1.3.0/deploy/prerequisite/longhorn-iscsi-installation.yaml
+    - https://raw.githubusercontent.com/longhorn/longhorn/v1.3.0/deploy/prerequisite/longhorn-nfs-installation.yaml
+    - https://raw.githubusercontent.com/longhorn/longhorn/v1.3.0/deploy/longhorn.yaml
+    - "{{ inventory_dir }}/resources/kubernetes/nginx-ingress-controller-v1.1.3.yaml"
+    - "{{ inventory_dir }}/resources/kubernetes/longhorn-storage-class.yaml"
+    - "{{ inventory_dir }}/resources/kubernetes/cert-manager-v1.8.1.yaml"
+  run_once: yes
+
+- name: Pause 20 seconds to make sure Certificate Manager Webhook got deployed.
+  pause:
+    seconds: 20
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Bootstrap Kubernetes Cluster Certificate Issuer (Lets_Encrypt) for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install Kubernetes Cluster Certificate Issuer (Lets_Encrypt) for all [Master, Workers] Node.
+  connection: local
+  delegate_to: localhost
+  shell: kubectl apply --filename {{ item }}
+  loop:
+    - "{{ inventory_dir }}/resources/kubernetes/cert-issuer.yaml"
+  run_once: yes

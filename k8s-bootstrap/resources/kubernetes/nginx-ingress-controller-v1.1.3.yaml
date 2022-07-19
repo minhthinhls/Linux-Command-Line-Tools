@@ -330,6 +330,7 @@ metadata:
 # @see {@link https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 spec:
+  type: NodePort # ["ClusterIP", "NodePort", "LoadBalancer"]
   externalTrafficPolicy: Cluster # ["Cluster", "Local"]
   ports:
     - appProtocol: http
@@ -348,7 +349,6 @@ spec:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
-  type: LoadBalancer
 ---
 apiVersion: v1
 kind: Service

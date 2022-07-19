@@ -3,18 +3,18 @@ apiVersion: v1
 kind: Namespace
 metadata:
   # [ALTERNATIVE COMMAND] > kubectl create namespace [NAMESPACE]
-  name: mongodb-namespace
+  name: mongodb-staging
   # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml
   labels:
-    name: mongodb-namespace
+    name: mongodb-staging
 
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: mongodb-secret
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
-  namespace: mongodb-namespace
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
+  namespace: mongodb-staging
 type: Opaque
 data:
   mongo-root-username: dXNlcm5hbWU=
@@ -25,19 +25,39 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mongodb-configmap
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
-  namespace: mongodb-namespace
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
+  namespace: mongodb-staging
 data:
-  # mongodb_server: mongodb-service.mongodb-namespace
+  # mongodb_server: mongodb-service.mongodb-staging
   mongodb_server: mongodb-service # Service can be accessed via Global Namespace.
+
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply this watcher via the following Commands.
+# @command >> sudo watch kubectl get sc,pv,pvc --output wide --all-namespaces;
+# @command >> sudo kubectl delete --namespace mongodb-staging pv/mongodb pvc/mongodb;
+# @see {@link https://stackoverflow.com/questions/34282704/can-a-pvc-be-bound-to-a-specific-pv}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb
+  namespace: mongodb-staging
+spec:
+  accessModes:
+    - ReadWriteMany # ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+  storageClassName: longhorn-retain # ["gce-pd", "longhorn-delete", "longhorn-retain"]
+  resources:
+    requests:
+      storage: 10Gi
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongodb-deployment
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
-  namespace: mongodb-namespace
+  name: mongodb
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
+  namespace: mongodb-staging
   labels:
     app: mongodb
 spec:
@@ -67,14 +87,21 @@ spec:
                 secretKeyRef:
                   name: mongodb-secret
                   key: mongo-root-password
+          volumeMounts:
+            - name: database
+              mountPath: /data/db/
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: mongodb
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: mongodb-service
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
-  namespace: mongodb-namespace
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
+  namespace: mongodb-staging
 spec:
   selector:
     app: mongodb
@@ -91,19 +118,19 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongo-express-deployment
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
-  namespace: mongodb-namespace
+  name: mongo-express
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
+  namespace: mongodb-staging
   labels:
     app: mongo-express
 spec:
   replicas: 1
-  # [DISPLAY PODS COMMAND] > kubectl get pod --namespace=mongodb-namespace
+  # [DISPLAY PODS COMMAND] > kubectl get pod --namespace=mongodb-staging
   selector:
     matchLabels:
       app: mongo-express
   template:
-    # [DISPLAY PODS LOGGER COMMAND] > kubectl logs <POD_NAME> --namespace=mongodb-namespace
+    # [DISPLAY PODS LOGGER COMMAND] > kubectl logs <POD_NAME> --namespace=mongodb-staging
     metadata:
       labels:
         app: mongo-express
@@ -141,8 +168,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mongo-express-service
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-namespace
-  namespace: mongodb-namespace
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
+  namespace: mongodb-staging
 spec:
   selector:
     app: mongo-express
@@ -156,11 +183,43 @@ spec:
       targetPort: 80
 
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mongo-express
+  # @describe: `kubectl describe certificate --namespace mongodb-staging`.
+  # @describe: `kubectl get secrets --namespace mongodb-staging`.
+  namespace: mongodb-staging
+spec:
+  dnsNames:
+    - mongo-express.e8s.io
+  secretName: mongo-express-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mongo-dashboard
+  # @describe: `kubectl describe certificate --namespace mongodb-staging`.
+  # @describe: `kubectl get secrets --namespace mongodb-staging`.
+  namespace: mongodb-staging
+spec:
+  dnsNames:
+    - mongo-dashboard.e8s.io
+  secretName: mongo-dashboard-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
+
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mongo-express-ingress
-  namespace: mongodb-namespace
+  name: mongo-express
+  namespace: mongodb-staging
   # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
   # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
   annotations:
@@ -179,8 +238,24 @@ spec:
     - hosts:
         - mongo-express.e8s.io
       secretName: mongo-express-tls
+    - hosts:
+        - mongo-dashboard.e8s.io
+      secretName: mongo-dashboard-tls
   rules:
     - host: mongo-express.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          # @deprecated: [- path: /mongo-express]
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mongo-express-service
+                port:
+                  number: 27027
+    - host: mongo-dashboard.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.

@@ -71,6 +71,7 @@ variable "keep_alived_instances" {
 variable "load_balancer_instances" {
     default = {
         reserved_external_ips = 2
+        reserved_boot_disks = 2
         number_instances = 2
     }
 }

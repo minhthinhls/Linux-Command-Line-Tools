@@ -21,11 +21,11 @@ resource "google_compute_address" "workers" {
 resource "google_compute_disk" "workers" {
     count       = var.worker_instances.reserved_boot_disks # Switch to [1] to provision again.
     name        = "ssd-worker-0${count.index + 1}"
-    type        = "pd-ssd" # ["pd-standard", "pd-balanced", "pd-ssd"]
+    type        = "pd-standard" # ["pd-standard", "pd-balanced", "pd-ssd"]
     zone        = "asia-east2-a" # "${var.zone}"
     snapshot    = "snapshot-workers"
     labels      = tomap({role = "workers"})
-    size        = 20 # Gigabytes
+    size        = 200 # Gigabytes
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -34,8 +34,12 @@ resource "google_compute_disk" "workers" {
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_instance" "workers" {
     count        = ((var.worker_instances.number_instances > var.worker_instances.reserved_external_ips) ?
-                   (var.worker_instances.reserved_external_ips) :
-                   (var.worker_instances.number_instances)) # Switch to [1] to provision again.
+                    (var.worker_instances.reserved_external_ips) :
+                    (var.worker_instances.number_instances)) # Switch to [1] to provision again.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Reboot Google Cloud Compute Instance will not keep Hostname the same within `/etc/hostname`.
+    # @see {@link https://stackoverflow.com/questions/49841511/change-hostname-permanently-in-google-compute-engine-instance-after-reboot/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     name         = "worker-0${count.index + 1}"
     hostname     = "worker-0${count.index + 1}.e8s.io"
     machine_type = "e2-small"
@@ -43,6 +47,10 @@ resource "google_compute_instance" "workers" {
 
     metadata = {
         ssh-keys = "${var.gce_ssh_user}:${file(var.gce_ssh_pub_key_file)}"
+        startup-script = <<EOF
+            sudo hostnamectl set-hostname 'worker-0${count.index + 1}.e8s.io';
+            echo 'worker-0${count.index + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;
+        EOF
     }
 
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance}
@@ -84,6 +92,7 @@ resource "google_compute_instance" "workers" {
         }
         inline = [
             "sudo hostnamectl set-hostname 'worker-0${count.index + 1}.e8s.io';",
+            "echo 'worker-0${count.index + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;",
         ]
     }
 
@@ -97,6 +106,11 @@ resource "google_compute_instance" "private-workers" {
     count        = ((var.worker_instances.number_instances > var.worker_instances.reserved_external_ips) ?
                     (var.worker_instances.number_instances - var.worker_instances.reserved_external_ips) :
                     (0)) # Switch to [1] to provision again.
+    depends_on   = [google_compute_instance.load-balancers]
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Reboot Google Cloud Compute Instance will not keep Hostname the same within `/etc/hostname`.
+    # @see {@link https://stackoverflow.com/questions/49841511/change-hostname-permanently-in-google-compute-engine-instance-after-reboot/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     name         = "worker-0${count.index + var.worker_instances.reserved_external_ips + 1}"
     hostname     = "worker-0${count.index + var.worker_instances.reserved_external_ips + 1}.e8s.io"
     machine_type = "e2-small"
@@ -104,6 +118,10 @@ resource "google_compute_instance" "private-workers" {
 
     metadata = {
         ssh-keys = "${var.gce_ssh_user}:${file(var.gce_ssh_pub_key_file)}"
+        startup-script = <<EOF
+            sudo hostnamectl set-hostname 'worker-0${count.index + var.worker_instances.reserved_external_ips + 1}.e8s.io';
+            echo 'worker-0${count.index + var.worker_instances.reserved_external_ips + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;
+        EOF
     }
 
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance}
@@ -152,6 +170,7 @@ resource "google_compute_instance" "private-workers" {
         }
         inline = [
             "sudo hostnamectl set-hostname 'worker-0${count.index + var.worker_instances.reserved_external_ips + 1}.e8s.io';",
+            "echo 'worker-0${count.index + var.worker_instances.reserved_external_ips + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;",
         ]
     }
 

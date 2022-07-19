@@ -239,34 +239,59 @@ alias k8-all='__KubeController__() {
 }; __KubeController__';
 
 # [COMMAND] > k8s-logs | > k8s-logs [DEPLOYMENT]
-alias k8s-logs='__Deployment_Describe__() {
+alias k8s-logs='__Pod_Shell_Display_Logs__() {
   if [ "$#" -eq 0 ]; then
-    echo ">>> PLEASE SPECIFY [DEPLOYMENT] AS FIRST ARGUMENT <<<";
+    echo ">>> PLEASE SPECIFY [POD_NAME] AS FIRST ARGUMENT <<<";
     return 1;
   fi
-  local pods="$(kubectl get all --all-namespaces | grep --only-matching --perl-regexp "[\w_-]+[\s]+pod/($1(-\w+)*)")";
-  local deployment="$(echo "$pods" | grep --only-matching --perl-regexp "pod/$1(-\w+)*")";
-  local namespace="$(echo "$pods" | grep --only-matching --perl-regexp "^[-\w]+")";
-  echo ">>> DEBUG -- [POD: $pods] -- [DEPLOYMENT: $deployment] -- [NAMESPACE: $namespace]";
-  kubectl logs --namespace "$namespace" "$deployment";
-  unset -f __Deployment_Describe__;
+  local pods="$(
+    kubectl get pods \
+    --all-namespaces \
+    --output custom-columns=":metadata.name" \
+    --no-headers     \
+    | grep "$1"      \
+    | head --lines 1 ;
+  )";
+  local namespace="$(kubens --current)";
+  echo ">>> DEBUG -- [POD: $pods] -- [NAMESPACE: $namespace]";
+  kubectl logs "$pods" --namespace "$namespace";
+  unset -f __Pod_Shell_Display_Logs__;
   return 1;
-}; __Deployment_Describe__';
+}; __Pod_Shell_Display_Logs__';
 
 # [COMMAND] > k8s-exec | > k8s-exec [DEPLOYMENT]
-alias k8s-exec='__Deployment_Execution__() {
+alias k8s-exec='__Pod_Shell_Execution__() {
   if [ "$#" -eq 0 ]; then
-    echo ">>> PLEASE SPECIFY [DEPLOYMENT] AS FIRST ARGUMENT <<<";
+    echo ">>> PLEASE SPECIFY [POD_NAME] AS FIRST ARGUMENT <<<";
     return 1;
   fi
-  local pods="$(kubectl get all --all-namespaces | grep --only-matching --perl-regexp "[\w_-]+[\s]+pod/($1(-\w+)*)")";
-  local deployment="$(echo "$pods" | grep --only-matching --perl-regexp "pod/$1(-\w+)*")";
-  local namespace="$(echo "$pods" | grep --only-matching --perl-regexp "^[-\w]+")";
-  echo ">>> DEBUG -- [POD: $pods] -- [DEPLOYMENT: $deployment] -- [NAMESPACE: $namespace]";
-  kubectl exec --namespace "$namespace" -it "$deployment" -- /bin/bash;
-  unset -f __Deployment_Execution__;
+  local pods="$(
+    kubectl get pods \
+    --all-namespaces \
+    --output custom-columns=":metadata.name" \
+    --no-headers     \
+    | grep "$1"      \
+    | head --lines 1 ;
+  )";
+  local namespace="$(kubens --current)";
+  echo ">>> DEBUG -- [POD: $pods] -- [NAMESPACE: $namespace]";
+  kubectl exec --namespace "$namespace" -it "$pods" -- /bin/bash;
+  unset -f __Pod_Shell_Execution__;
   return 1;
-}; __Deployment_Execution__';
+}; __Pod_Shell_Execution__';
+
+# [COMMAND] > k8s-exec | > k8s-exec [DEPLOYMENT]
+alias k8s-delete='__Kubernetes_Shell_Resource_Delete__() {
+  if [ "$#" -eq 0 ]; then
+    echo ">>> PLEASE SPECIFY [RESOURCE_NAME] AS FIRST ARGUMENT <<<";
+    return 1;
+  fi
+  local namespace="$(kubens --current)";
+  echo ">>> DEBUG -- [RESOURCE: $@] -- [NAMESPACE: $namespace]";
+  kubectl delete "$@" --force --grace-period=0;
+  unset -f __Kubernetes_Shell_Resource_Delete__;
+  return 1;
+}; __Kubernetes_Shell_Resource_Delete__';
 
 # [COMMAND] > k8s-watch | > k8s-watch [INTERVAL]
 alias k8s-watch='__KubeMonitor__() {
@@ -343,6 +368,29 @@ alias proxy-ssh='proxy_client_ssh() {
     -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
     -o StrictHostKeyChecking=no \
     -q admin.e8s.io@"$1" \
+    -W %h:%p \
+  ";
+
+  unset -f proxy_client_ssh;
+  return 1;
+}; proxy_client_ssh';
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Proxy SSH through Bastion Virtual Machines to access Private Cluster Machines.
+# @see: {@link https://goteleport.com/blog/security-hardening-ssh-bastion-best-practices/}
+# @see: {@link https://www.redhat.com/sysadmin/ssh-proxy-bastion-proxyjump/}
+# [COMMAND] > proxy-ssh [[BASTION_MACHINE]] [DESTINATION_MACHINE]
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+alias proxy='proxy_client_ssh() {
+  echo "----- BEGIN PROXY SSH THROUGH BASTION MACHINES -----";
+  ssh admin.e8s.io@"$1" \
+  -o StrictHostKeyChecking=no \
+  -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
+  -o ProxyCommand=" \
+    ssh \
+    -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
+    -o StrictHostKeyChecking=no \
+    -q admin.e8s.io@bastion-ingress.e8s.io \
     -W %h:%p \
   ";
 

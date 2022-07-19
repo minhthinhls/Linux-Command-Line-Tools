@@ -19,7 +19,7 @@ resource "google_compute_address" "load-balancers" {
 # @see {@link https://github.com/hashicorp/terraform-provider-google/issues/5428}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_disk" "load-balancers" {
-    count       = var.load_balancer_instances.number_instances # Switch to [1] to provision again.
+    count       = var.load_balancer_instances.reserved_boot_disks # Switch to [1] to provision again.
     name        = "ssd-load-balancer-0${count.index + 2}"
     type        = "pd-standard" # ["pd-standard", "pd-balanced", "pd-ssd"]
     zone        = "asia-east2-a" # "${var.zone}"
@@ -36,6 +36,10 @@ resource "google_compute_disk" "load-balancers" {
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_instance" "load-balancers" {
     count        = var.load_balancer_instances.number_instances # Switch to [1] to provision again.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Reboot Google Cloud Compute Instance will not keep Hostname the same within `/etc/hostname`.
+    # @see {@link https://stackoverflow.com/questions/49841511/change-hostname-permanently-in-google-compute-engine-instance-after-reboot/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     name         = "load-balancer-0${count.index + 2}"
     hostname     = "load-balancer-0${count.index + 2}.e8s.io"
     machine_type = "e2-small"
@@ -47,6 +51,7 @@ resource "google_compute_instance" "load-balancers" {
 
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance}
     boot_disk {
+        auto_delete = false # Must not delete Boot Disk when Instance got terminated.
         device_name = "SSD-Load-Balancer-0${count.index + 2}"
         source = google_compute_disk.load-balancers[count.index].name
     }
@@ -59,6 +64,12 @@ resource "google_compute_instance" "load-balancers" {
         access_config {
             nat_ip = try(google_compute_address.load-balancers[count.index].address, "")
         }
+    }
+
+    service_account {
+        # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+        email  = local.service_account["client_email"]
+        scopes = ["cloud-platform"]
     }
 
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}
@@ -77,6 +88,7 @@ resource "google_compute_instance" "load-balancers" {
         }
         inline = [
             "sudo hostnamectl set-hostname 'load-balancer-0${count.index + 2}.e8s.io';",
+            "echo 'load-balancer-0${count.index + 2}.e8s.io' | sudo tee /etc/hostname > /dev/null;",
         ]
     }
 

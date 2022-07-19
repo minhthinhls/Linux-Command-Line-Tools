@@ -54,23 +54,32 @@
       with_first_found:
         - "{{ inventory_dir }}/vars/RHEL-8.yml"
 
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Set Hostname to Cluster Nodes before any other Operation.
+    # @see {@link https://stackoverflow.com/questions/48854905/how-to-add-roles-to-nodes-in-kubernetes}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
     - name: |
-        1. Install Yum Package Manager for Cluster Virtual Machines.
-        2. Uninstall Deprecated YUM/DNF Packages for RHEL/CentOS 8.
-        3. Install Functional YUM/DNF Packages for RHEL/CentOS 8.
-        4. Install & Configure NGINX for Cluster Load Balancers.
+        1.1. Setup All Hostname for Kubernetes Cluster VMs via Systemctl.
+      hostname:
+        name: "{{ inventory_hostname }}.e8s.io"
+
+    - name: |
+        2.1. Install Yum Package Manager for Cluster Virtual Machines.
+        2.2. Uninstall Deprecated YUM/DNF Packages for RHEL/CentOS 8.
+        2.3. Install Functional YUM/DNF Packages for RHEL/CentOS 8.
+        2.4. Install & Configure NGINX for Cluster Load Balancers.
       include: "{{ inventory_dir }}/tasks/setup/dependency/index.yml"
       when: False # Currently Disable.
 
     - name: |
-        1. Load Required Modules into Linux Kernel.
-        2. Provision required systemctl params::[network-bridge, ip_v4_v6_forward].
-        3. Set [{httpd_can_network_connect: off}, {httpd_can_network_relay: on}].
-        4. Edit Kubernetes Admin Configurations and Restart Kubelet Service.
+        3.1. Load Required Modules into Linux Kernel.
+        3.2. Provision required systemctl params::[network-bridge, ip_v4_v6_forward].
+        3.3. Set [{httpd_can_network_connect: off}, {httpd_can_network_relay: on}].
+        3.4. Edit Kubernetes Admin Configurations and Restart Kubelet Service.
       include: "{{ inventory_dir }}/tasks/setup/runtime/index.yml"
       when: False # Currently Disable.
 
     - name: |
-        1. Bootstrap Kubernetes Cluster Automatically.
+        4.1. Bootstrap Kubernetes Cluster Automatically.
       include: "{{ inventory_dir }}/tasks/setup/kubernetes/index.yml"
       when: True # Currently Disable.

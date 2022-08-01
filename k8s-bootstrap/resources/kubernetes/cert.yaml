@@ -1,21 +1,43 @@
 ---
-apiVersion: v1
-kind: Namespace
+apiVersion: cert-manager.io/v1
+kind: Certificate
 metadata:
-  # [ALTERNATIVE COMMAND] > kubectl create namespace [NAMESPACE]
-  name: mongodb-namespace
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml
-  labels:
-    name: mongodb-namespace
+  name: argocd
+  # @describe: `kubectl describe certificate --namespace argocd-system`.
+  # @describe: `kubectl get secrets --namespace argocd-system`.
+  namespace: argocd-system
+spec:
+  dnsNames:
+    - argocd.e8s.io
+  secretName: argocd-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: portainer
+  # @describe: `kubectl describe certificate --namespace portainer-system`.
+  # @describe: `kubectl get secrets --namespace portainer-system`.
+  namespace: portainer-system
+spec:
+  dnsNames:
+    - portainer.e8s.io
+  secretName: portainer-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
 
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: mongo-express
-  # @describe: `kubectl describe certificate --namespace mongodb-namespace`.
-  # @describe: `kubectl get secrets --namespace mongodb-namespace`.
-  namespace: mongodb-namespace
+  # @describe: `kubectl describe certificate --namespace mongodb-staging`.
+  # @describe: `kubectl get secrets --namespace mongodb-staging`.
+  namespace: mongodb-staging
 spec:
   dnsNames:
     - mongo-express.e8s.io

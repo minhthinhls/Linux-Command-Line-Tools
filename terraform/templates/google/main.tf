@@ -4,19 +4,19 @@
 # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/getting_started}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 provider "google" {
-    credentials = file("service-account.json")
-    project = "kubernetes-e8s-io"
+    credentials = file(var.service_account)
+    project = local.service_account["project_id"]
     region  = var.region
     zone    = var.zone
 }
 
-variable "service_account" {
-    type    = string
-    default = "kubernetes-manager@kubernetes-e8s-io.iam.gserviceaccount.com"
+locals {
+    service_account = jsondecode(file(var.service_account))
 }
 
-locals {
-    service_account = jsondecode(file("service-account.json"))
+variable "service_account" {
+    type    = string
+    default = "service-account.json"
 }
 
 variable "gce_ssh_user" {
@@ -47,9 +47,18 @@ variable "zone" {
 # @command >> gcloud config set project kubernetes-e8s-io
 # @command >> gcloud compute images list --filter=centos
 
+variable "snapshot_load_balancer_instances" {
+    default = {
+        reserved_external_ips = 0
+        reserved_boot_disks = 0
+        number_instances = 0
+    }
+}
+
 variable "snapshot_master_instances" {
     default = {
         reserved_external_ips = 0
+        reserved_boot_disks = 0
         number_instances = 0
     }
 }
@@ -57,6 +66,7 @@ variable "snapshot_master_instances" {
 variable "snapshot_worker_instances" {
     default = {
         reserved_external_ips = 0
+        reserved_boot_disks = 0
         number_instances = 0
     }
 }

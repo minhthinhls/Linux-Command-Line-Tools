@@ -182,37 +182,37 @@ spec:
       # [Kubernetes Cluster] - Deployment (Pods) Port.
       targetPort: 80
 
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: mongo-express
-  # @describe: `kubectl describe certificate --namespace mongodb-staging`.
-  # @describe: `kubectl get secrets --namespace mongodb-staging`.
-  namespace: mongodb-staging
-spec:
-  dnsNames:
-    - mongo-express.e8s.io
-  secretName: mongo-express-tls
-  issuerRef:
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
+#  ---
+#  apiVersion: cert-manager.io/v1
+#  kind: Certificate
+#  metadata:
+#    name: mongo-express
+#    # @describe: `kubectl describe certificate --namespace mongodb-staging`.
+#    # @describe: `kubectl get secrets --namespace mongodb-staging`.
+#    namespace: mongodb-staging
+#  spec:
+#    dnsNames:
+#      - mongo-express.e8s.io
+#    secretName: mongo-express-tls
+#    issuerRef:
+#      name: letsencrypt-cluster-issuer
+#      kind: ClusterIssuer
 
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: mongo-dashboard
-  # @describe: `kubectl describe certificate --namespace mongodb-staging`.
-  # @describe: `kubectl get secrets --namespace mongodb-staging`.
-  namespace: mongodb-staging
-spec:
-  dnsNames:
-    - mongo-dashboard.e8s.io
-  secretName: mongo-dashboard-tls
-  issuerRef:
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
+#  ---
+#  apiVersion: cert-manager.io/v1
+#  kind: Certificate
+#  metadata:
+#    name: mongo-dashboard
+#    # @describe: `kubectl describe certificate --namespace mongodb-staging`.
+#    # @describe: `kubectl get secrets --namespace mongodb-staging`.
+#    namespace: mongodb-staging
+#  spec:
+#    dnsNames:
+#      - mongo-dashboard.e8s.io
+#    secretName: mongo-dashboard-tls
+#    issuerRef:
+#      name: letsencrypt-cluster-issuer
+#      kind: ClusterIssuer
 
 ---
 apiVersion: networking.k8s.io/v1

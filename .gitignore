@@ -1,7 +1,7 @@
 # API keys and secrets
 .env
-/**/hosts.yml
-/**/*/service-account.json
+/**/*hosts*.y*ml
+/**/*/service-account*.json
 
 ### VisualStudioCode ###
 .vscode

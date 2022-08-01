@@ -1,0 +1,231 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Jenkins Deployment via Kubernetes Template Engines.
+# @see {@link https://github1s.com/marcel-dempers/docker-development-youtube-series/blob/HEAD/jenkins/jenkins.deployment.yaml}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins-system
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: jenkins-system
+  labels:
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.235.1-lts-alpine"
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jenkins
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods/exec" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods/log" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "secrets" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "services" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "ingresses" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins
+  namespace: jenkins-system
+  labels:
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.235.1-lts-alpine"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: jenkins-system
+
+---
+# Source: portainer/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins
+  namespace: jenkins-system
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: "generic"
+  labels:
+    io.portainer.kubernetes.application.stack: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.235.1-lts-alpine"
+spec:
+  accessModes:
+    - ReadWriteMany # ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+  storageClassName: longhorn-retain # ["gce-pd", "longhorn-delete", "longhorn-retain"]
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins-system
+  labels:
+    app: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+spec:
+  selector:
+    matchLabels:
+      app: jenkins
+      app.kubernetes.io/name: jenkins
+      app.kubernetes.io/instance: jenkins
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: jenkins
+        app.kubernetes.io/name: jenkins
+        app.kubernetes.io/instance: jenkins
+    spec:
+      serviceAccountName: jenkins
+      containers:
+        - name: jenkins
+          image: jenkins/jenkins:2.235.1-lts-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JAVA_OPTS
+              value: -Xmx2048m -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 50000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/jenkins_home
+              name: jenkins
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 0
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: jenkins
+          persistentVolumeClaim:
+            claimName: jenkins
+
+---
+# Source: portainer/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: jenkins-system
+  labels:
+    io.portainer.kubernetes.application.stack: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.235.1-lts-alpine"
+spec:
+  type: ClusterIP
+  ports:
+    - name: ui
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: slave
+      port: 50000
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 8080
+  selector:
+    app: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jenkins
+  # @describe: `kubectl describe certificate --namespace jenkins-system`.
+  # @describe: `kubectl get secrets --namespace jenkins-system`.
+  namespace: jenkins-system
+spec:
+  dnsNames:
+    - jenkins.e8s.io
+  secretName: jenkins-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins
+  namespace: jenkins-system
+  # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    # @deprecated: Deprecated from Kubernetes v1.22+.
+    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
+    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
+    kubernetes.io/ingress.class: nginx
+    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+    - hosts:
+        - jenkins.e8s.io
+      secretName: jenkins-tls
+  rules:
+    - host: jenkins.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080
+

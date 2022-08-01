@@ -42,7 +42,7 @@ resource "google_compute_instance" "masters" {
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     name         = "master-0${count.index + 1}"
     hostname     = "master-0${count.index + 1}.e8s.io"
-    machine_type = "e2-custom-2-3072" # ["e2-custom-2-3072"] -> [2CPUs :: 3GBs RAM]
+    machine_type = "e2-custom-2-3072" # [["e2-small"], ["e2-custom-2-3072"]] -> [["2CPUs :: 2GBs RAM"], ["2CPUs :: 3GBs RAM"]]
     tags         = ["masters"]
 
     metadata = {
@@ -79,17 +79,18 @@ resource "google_compute_instance" "masters" {
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}
     provisioner "remote-exec" {
         connection {
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             # @description: Terraform GCP Remote-exec after creating Instance - gists · GitHub.
             # @deprecated: {{ host = google_compute_address.masters[count.index].address }}
             # @see {@link https://gist.github.com/smford22/54aa5e96701430f1bb0ea6e1a502d23a}
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].access_config[0].nat_ip
             type        = "ssh"
             user        = var.gce_ssh_user
             timeout     = "60s"
             private_key = file(var.gce_ssh_private_key_file)
         }
+
         inline = [
             "sudo hostnamectl set-hostname 'master-0${count.index + 1}.e8s.io';",
             "echo 'master-0${count.index + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;",
@@ -113,7 +114,7 @@ resource "google_compute_instance" "private-masters" {
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     name         = "master-0${count.index + var.master_instances.reserved_external_ips + 1}"
     hostname     = "master-0${count.index + var.master_instances.reserved_external_ips + 1}.e8s.io"
-    machine_type = "e2-small" # ["e2-custom-2-3072"] -> [2CPUs :: 3GBs RAM]
+    machine_type = "e2-custom-2-3072" # [["e2-small"], ["e2-custom-2-3072"]] -> [["2CPUs :: 2GBs RAM"], ["2CPUs :: 3GBs RAM"]]
     tags         = ["masters"]
 
     metadata = {
@@ -147,27 +148,28 @@ resource "google_compute_instance" "private-masters" {
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}
     provisioner "remote-exec" {
         connection {
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             # @description: Terraform GCP Remote-exec after creating Instance - gists · GitHub.
             # @deprecated: {{ host = google_compute_address.masters[count.index].address }}
             # @see {@link https://gist.github.com/smford22/54aa5e96701430f1bb0ea6e1a502d23a}
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].network_ip
             type        = "ssh"
             user        = var.gce_ssh_user
             timeout     = "60s"
             private_key = file(var.gce_ssh_private_key_file)
 
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             # @description: SSH Through Kubernetes Cluster Bastion Machine.
             # @see {@link https://github.com/hashicorp/terraform/issues/18889/}
             # @see {@link https://www.terraform.io/language/resources/provisioners/connection#connecting-through-a-bastion-host-with-ssh/}
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             bastion_host        = "bastion-ingress.e8s.io"
             bastion_port        = 22
             bastion_user        = "admin.e8s.io"
             bastion_private_key = file(var.gce_ssh_private_key_file)
         }
+
         inline = [
             "sudo hostnamectl set-hostname 'master-0${count.index + var.master_instances.reserved_external_ips + 1}.e8s.io';",
             "echo 'master-0${count.index + var.master_instances.reserved_external_ips + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;",

@@ -75,17 +75,18 @@ resource "google_compute_instance" "load-balancers" {
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}
     provisioner "remote-exec" {
         connection {
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             # @description: Terraform GCP Remote-exec after creating Instance - gists · GitHub.
             # @deprecated: {{ host = google_compute_address.load-balancers[count.index].address }}
             # @see {@link https://gist.github.com/smford22/54aa5e96701430f1bb0ea6e1a502d23a}
-            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].access_config[0].nat_ip
             type        = "ssh"
             user        = var.gce_ssh_user
             timeout     = "60s"
             private_key = file(var.gce_ssh_private_key_file)
         }
+
         inline = [
             "sudo hostnamectl set-hostname 'load-balancer-0${count.index + 2}.e8s.io';",
             "echo 'load-balancer-0${count.index + 2}.e8s.io' | sudo tee /etc/hostname > /dev/null;",

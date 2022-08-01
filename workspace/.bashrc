@@ -15,6 +15,38 @@ alias cp="cp -i";
 alias rm="rm -i";
 alias mv="mv -i";
 
+# [COMMAND] > ke [NAMESPACE]
+alias ke='__Kubernetes_Switch_Namespace__() {
+  if [ "$#" -eq 0 ]; then
+    kubens; return 1;
+  fi
+  local namespace="$(
+    kubens           \
+    | grep "$1"      \
+    | head --lines 1 ;
+  )";
+  echo ">>> DEBUG -- [ARGUMENTS: $@] -- [NAMESPACE: $namespace]";
+  kubens "$namespace";
+  unset -f __Kubernetes_Switch_Namespace__;
+  return 1;
+}; __Kubernetes_Switch_Namespace__';
+
+# [COMMAND] > kw [INTERVAL_SECOND]
+alias kw='__Kubernetes_Watch_Resource__() {
+  local namespace="$(kubens --current)";
+  local resources="Pods,Deployment,Service,Ingress,Certificate,StorageClass,PersistentVolumeClaims,PersistentVolume";
+  echo ">>> DEBUG -- [INTERVAL_SECOND: $@] -- [NAMESPACE: $namespace]";
+  if [ "$#" -eq 0 ]; then
+    kubectl get "$resources" --namespace "$namespace" --output="wide";
+    return 1;
+  fi
+  watch --interval "$1" "
+    kubectl get "$resources" --namespace "$namespace";
+  ";
+  unset -f __Kubernetes_Watch_Resource__;
+  return 1;
+}; __Kubernetes_Watch_Resource__';
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Kill Login Session for Linux Virtual Machines.
 # @see: {@link https://snubmonkey.com/how-to-kill-user-tty-pts-sessions-in-linux/}
@@ -244,12 +276,13 @@ alias k8s-logs='__Pod_Shell_Display_Logs__() {
     echo ">>> PLEASE SPECIFY [POD_NAME] AS FIRST ARGUMENT <<<";
     return 1;
   fi
+  local args="$(echo "$1" | sed "s/pod\///g")";
   local pods="$(
     kubectl get pods \
     --all-namespaces \
     --output custom-columns=":metadata.name" \
     --no-headers     \
-    | grep "$1"      \
+    | grep "$args"   \
     | head --lines 1 ;
   )";
   local namespace="$(kubens --current)";
@@ -265,12 +298,13 @@ alias k8s-exec='__Pod_Shell_Execution__() {
     echo ">>> PLEASE SPECIFY [POD_NAME] AS FIRST ARGUMENT <<<";
     return 1;
   fi
+  local args="$(echo "$1" | sed "s/pod\///g")";
   local pods="$(
     kubectl get pods \
     --all-namespaces \
     --output custom-columns=":metadata.name" \
     --no-headers     \
-    | grep "$1"      \
+    | grep "$args"   \
     | head --lines 1 ;
   )";
   local namespace="$(kubens --current)";

@@ -1,0 +1,37 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Re-Claim Persistent Volume when Destroying or changing PVC Namespace.
+# @see {@link https://webera.blog/recreate-an-existing-pvc-in-a-new-namespace-but-reusing-the-same-pv-without-data-loss-2c7326c0035a}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  #  annotations:
+  #    kubectl.kubernetes.io/last-applied-configuration: |
+  #      {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"mongodb","namespace":"mongodb-staging"},"spec":{"accessModes":["ReadWriteMany"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"longhorn-retain"}}
+  #    pv.kubernetes.io/bind-completed: "yes"
+  #    pv.kubernetes.io/bound-by-controller: "yes"
+  #    volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+  #    volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+  #  creationTimestamp: "2022-07-31T19:19:19Z"
+  #  finalizers:
+  #  - kubernetes.io/pvc-protection
+  name: mongodb
+  namespace: mongodb-staging
+#  resourceVersion: "12396"
+#  uid: c6b4b4bc-754f-4a64-996d-596e57b85622
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: longhorn-retain
+  volumeMode: Filesystem
+  volumeName: pvc-aa417e50-25f2-4e4a-a323-f796385f42dd # Add your Persistent Volume Unique Name here.
+# status:
+#   accessModes:
+#   - ReadWriteMany
+#   capacity:
+#     storage: 10Gi
+#   phase: Bound

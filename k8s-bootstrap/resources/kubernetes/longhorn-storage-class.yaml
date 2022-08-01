@@ -10,7 +10,7 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 parameters:
-  numberOfReplicas: "6"
+  numberOfReplicas: "3"
   staleReplicaTimeout: "2880"
   fromBackup: ""
   fsType: "ext4"
@@ -27,7 +27,7 @@ allowVolumeExpansion: true
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 parameters:
-  numberOfReplicas: "6"
+  numberOfReplicas: "3"
   staleReplicaTimeout: "2880"
   fromBackup: ""
   fsType: "ext4"

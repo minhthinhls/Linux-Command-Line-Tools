@@ -3,6 +3,9 @@
 ---
 git_token: "ghp_vxZTbKM4YHMBQhQGEXA9CABKUNWVKl42oE8S" # Github Personal Token for Pushing into Repository.
 gcp_project_id: "kubernetes-e8s-io"                   # Google Cloud Self-Managed Kubernetes Project.
+gcp_master_04_project_id: "kubernetes-e8s-io-v2"      # Google Cloud Self-Managed Kubernetes Project.
+gcp_worker_04_project_id: "kubernetes-e8s-io-v3"      # Google Cloud Self-Managed Kubernetes Project.
+gcp_worker_08_project_id: "kubernetes-e8s-io-v6"      # Google Cloud Self-Managed Kubernetes Project.
 k8s_version: "1.24"                                   # Kubernetes Version to be Installed.
 selinux_state: permissive                             # SELinux State [Mode::Permissive] on Kubernetes Nodes.
 timezone: "Atlantic/Azores"                           # Configure Timezone on all Cluster Nodes.

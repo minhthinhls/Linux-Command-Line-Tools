@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: portainer
+  name: portainer-system
 
 ---
 # Source: portainer/templates/ServiceAccount.yaml
@@ -11,7 +11,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: portainer-sa-clusteradmin
-  namespace: portainer
+  namespace: portainer-system
   labels:
     app.kubernetes.io/name: portainer
     app.kubernetes.io/instance: portainer
@@ -33,7 +33,7 @@ roleRef:
   name: cluster-admin
 subjects:
   - kind: ServiceAccount
-    namespace: portainer
+    namespace: portainer-system
     name: portainer-sa-clusteradmin
 
 ---
@@ -42,7 +42,7 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: portainer
-  namespace: portainer
+  namespace: portainer-system
   annotations:
     volume.alpha.kubernetes.io/storage-class: "generic"
   labels:
@@ -64,7 +64,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: portainer
-  namespace: portainer
+  namespace: portainer-system
   labels:
     io.portainer.kubernetes.application.stack: portainer
     app.kubernetes.io/name: portainer
@@ -129,7 +129,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: portainer
-  namespace: portainer
+  namespace: portainer-system
   labels:
     io.portainer.kubernetes.application.stack: portainer
     app.kubernetes.io/name: portainer
@@ -157,44 +157,44 @@ spec:
     app.kubernetes.io/name: portainer
     app.kubernetes.io/instance: portainer
 
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: portainer
-  # @describe: `kubectl describe certificate --namespace portainer`.
-  # @describe: `kubectl get secrets --namespace portainer`.
-  namespace: portainer
-spec:
-  dnsNames:
-    - portainer.e8s.io
-  secretName: portainer-tls
-  issuerRef:
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
+#  ---
+#  apiVersion: cert-manager.io/v1
+#  kind: Certificate
+#  metadata:
+#    name: portainer
+#    # @describe: `kubectl describe certificate --namespace portainer-system`.
+#    # @describe: `kubectl get secrets --namespace portainer-system`.
+#    namespace: portainer-system
+#  spec:
+#    dnsNames:
+#      - portainer.e8s.io
+#    secretName: portainer-tls
+#    issuerRef:
+#      name: letsencrypt-cluster-issuer
+#      kind: ClusterIssuer
 
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: portainer-dashboard
-  # @describe: `kubectl describe certificate --namespace portainer`.
-  # @describe: `kubectl get secrets --namespace portainer`.
-  namespace: portainer
-spec:
-  dnsNames:
-    - portainer-dashboard.e8s.io
-  secretName: portainer-dashboard-tls
-  issuerRef:
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
+#  ---
+#  apiVersion: cert-manager.io/v1
+#  kind: Certificate
+#  metadata:
+#    name: portainer-dashboard
+#    # @describe: `kubectl describe certificate --namespace portainer-system`.
+#    # @describe: `kubectl get secrets --namespace portainer-system`.
+#    namespace: portainer-system
+#  spec:
+#    dnsNames:
+#      - portainer-dashboard.e8s.io
+#    secretName: portainer-dashboard-tls
+#    issuerRef:
+#      name: letsencrypt-cluster-issuer
+#      kind: ClusterIssuer
 
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: portainer
-  namespace: portainer
+  namespace: portainer-system
   # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
   # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
   annotations:

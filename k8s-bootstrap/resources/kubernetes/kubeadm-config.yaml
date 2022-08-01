@@ -1,7 +1,7 @@
 ---
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Kubernetes Cluster Configuration via YAML Structure.
-# @see {@link https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/}
+# @see {@link https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#:~:text=ClusterConfiguration,-etcd}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
@@ -30,9 +30,10 @@ apiServer:
   # Certificate Subject Alternative Names.
   certSANs:
     - "control-plane.e8s.io"
-    - "172.16.1.1"
-    - "172.16.1.2"
-    - "172.16.1.3"
+    - "172.16.1.101"
+    - "172.16.1.102"
+    - "172.16.1.103"
+    - "172.16.1.104"
   extraArgs:
     cloud-provider: "gce"
     cloud-config: "/etc/kubernetes/google-compute-engine.conf"
@@ -46,6 +47,17 @@ controllerManager:
   extraArgs:
     cloud-provider: "gce"
     cloud-config: "/etc/kubernetes/google-compute-engine.conf"
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Configure Kubernetes Cluster Rancher Configuration via YAML Structure.
+    # @see {@link https://github.com/rancher/rke/issues/1329#issuecomment-490775878}
+    # @see {@link https://github.com/rancher/rancher/issues/18207/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Configure Kubernetes Cluster Cloud Routes Configuration via YAML Structure.
+    # @see {@link https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/#:~:text=configure%2Dcloud%2Droutes}
+    # @see {@link https://stackoverflow.com/questions/56722303/routecontroller-failed-to-create-a-route-on-gke/}
+    # @see {@link https://github.com/kubernetes/cloud-provider-alibaba-cloud/issues/46/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    configure-cloud-routes: "false"
   extraVolumes:
     - name: cloud
       hostPath: "/etc/kubernetes/google-compute-engine.conf"

@@ -27,9 +27,9 @@
     - "{{ inventory_dir }}/resources/kubernetes/cert-manager-v1.8.1.yaml"
   run_once: yes
 
-- name: Pause 20 seconds to make sure Certificate Manager Webhook got deployed.
+- name: Pause 30 seconds to make sure Certificate Manager Webhook got deployed.
   pause:
-    seconds: 20
+    seconds: 30
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Bootstrap Kubernetes Cluster Certificate Issuer (Lets_Encrypt) for all [Master, Workers] Node.
@@ -41,4 +41,16 @@
   shell: kubectl apply --filename {{ item }}
   loop:
     - "{{ inventory_dir }}/resources/kubernetes/cert-issuer.yaml"
+  run_once: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Bootstrap Kubernetes Cluster Argo Continuous Deployment for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install Kubernetes Cluster Argo Continuous Deployment for all [Master, Workers] Node.
+  connection: local
+  delegate_to: localhost
+  shell: kubectl apply --namespace argocd-system --filename {{ item }}
+  loop:
+    - "{{ inventory_dir }}/resources/kubernetes/argocd-stable.yaml"
   run_once: yes

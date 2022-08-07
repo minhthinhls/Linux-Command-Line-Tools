@@ -15,6 +15,18 @@ alias cp="cp -i";
 alias rm="rm -i";
 alias mv="mv -i";
 
+# [COMMAND] > vim [FILES]
+alias vim='__Execute_Text_Editor__() {
+  if [ "$#" -eq 0 ]; then
+    echo ">>> PLEASE SPECIFY [FILES] AS FIRST ARGUMENT <<<";
+    return 1;
+  fi
+  echo ">>> DEBUG -- [ARGUMENTS: $@]";
+  vi -S ~/.vimrc "$@";
+  unset -f __Execute_Text_Editor__;
+  return 1;
+}; __Execute_Text_Editor__';
+
 # [COMMAND] > ke [NAMESPACE]
 alias ke='__Kubernetes_Switch_Namespace__() {
   if [ "$#" -eq 0 ]; then

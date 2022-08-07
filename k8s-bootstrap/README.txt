@@ -40,3 +40,19 @@ Get Jenkins Default Admin Password within Kubernetes Container.
     + Command Arguments: <empty>
 
 ---
+@description: Prometheus Tutorial
+@see {@link https://github.com/prometheus-operator/kube-prometheus/}
+> kubectl apply --server-side --filename ./resources/kubernetes/prometheus/manifests/setup/;
+> until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done;
+> kubectl apply --filename ./resources/kubernetes/prometheus/manifests/;
+
+@error: Cannot fetch Nodes Metrics.
+@see {@link https://github.com/kubernetes-sigs/prometheus-adapter/issues/385#issuecomment-847813605}
+@see {@link https://github.com/kubernetes-sigs/prometheus-adapter/issues/398#issuecomment-847859835}
+@see {@link https://github.com/kubernetes-sigs/prometheus-adapter/issues/398#issuecomment-943663327}
+
+@refer: Please refer to the following sources from Kube Prometheus Legacy Projects.
+@see {@link https://github.dev/prometheus-operator/kube-prometheus/tree/release-0.10/}
+@see {@link https://github.dev/prometheus-operator/kube-prometheus/tree/release-0.11/}
+
+---

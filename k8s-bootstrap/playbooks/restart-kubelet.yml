@@ -1,0 +1,42 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ masters, workers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files: "{{ inventory_dir }}/vars/node-env.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Resolve Error [ERROR CRI]: Container Runtime is not Running. Apply to all Cluster Nodes.
+    # @description: Apply these [COMMAND] after deploying & linking Kubernetes Cluster.
+    # @see {@link https://github.com/containerd/containerd/issues/4581}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Remove Container Daemon Default Configuration.
+      file:
+        path: /etc/containerd/config.toml
+        state: absent
+
+    - name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
+      systemd:
+        name: containerd
+        state: restarted
+        daemon_reload: yes
+
+    - name: 'Restart service `kubelet`, in all cases.'
+      service:
+        name: kubelet
+        state: restarted

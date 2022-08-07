@@ -1,0 +1,106 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+  # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    # @deprecated: Deprecated from Kubernetes v1.22+.
+    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
+    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
+    kubernetes.io/ingress.class: nginx
+    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+    - hosts:
+        - grafana.e8s.io
+      secretName: grafana-tls
+    - hosts:
+        - grafana-dashboard.e8s.io
+      secretName: grafana-dashboard-tls
+  rules:
+    - host: grafana.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+    - host: grafana-dashboard.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus
+  namespace: monitoring
+  # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    # @deprecated: Deprecated from Kubernetes v1.22+.
+    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
+    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
+    kubernetes.io/ingress.class: nginx
+    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+    - hosts:
+        - prometheus.e8s.io
+      secretName: prometheus-tls
+    - hosts:
+        - prometheus-dashboard.e8s.io
+      secretName: prometheus-dashboard-tls
+  rules:
+    - host: prometheus.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-operated
+                port:
+                  number: 9090
+    - host: prometheus-dashboard.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-operated
+                port:
+                  number: 9090
+

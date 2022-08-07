@@ -1,0 +1,31 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana
+  # @describe: `kubectl describe certificate --namespace monitoring`.
+  # @describe: `kubectl get secrets --namespace monitoring`.
+  namespace: monitoring
+spec:
+  dnsNames:
+    - grafana.e8s.io
+  secretName: grafana-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus
+  # @describe: `kubectl describe certificate --namespace monitoring`.
+  # @describe: `kubectl get secrets --namespace monitoring`.
+  namespace: monitoring
+spec:
+  dnsNames:
+    - prometheus.e8s.io
+  secretName: prometheus-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer

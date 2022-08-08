@@ -10780,7 +10780,7 @@ spec:
 #      - argocd.e8s.io
 #    secretName: argocd-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 #  ---
@@ -10796,7 +10796,7 @@ spec:
 #      - argocd-dashboard.e8s.io
 #    secretName: argocd-dashboard-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 ---
@@ -10824,10 +10824,10 @@ spec:
   tls:
     - hosts:
         - argocd.e8s.io
-      secretName: argocd-tls
+      secretName: wildcard-argocd-tls
     - hosts:
-        - argocd-dashboard.e8s.io
-      secretName: argocd-dashboard-tls
+        - dashboard.argocd.e8s.io
+      secretName: wildcard-argocd-tls
   rules:
     - host: argocd.e8s.io
       http:
@@ -10842,7 +10842,7 @@ spec:
                 port:
                   # name: https
                   number: 443
-    - host: argocd-dashboard.e8s.io
+    - host: dashboard.argocd.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.

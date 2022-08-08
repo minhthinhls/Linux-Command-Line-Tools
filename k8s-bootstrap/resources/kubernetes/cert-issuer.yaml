@@ -2,18 +2,83 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  # @describe: `kubectl describe ClusterIssuer letsencrypt-cluster-issuer`.
-  name: letsencrypt-cluster-issuer
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  # @describe: `kubectl describe ClusterIssuer letsencrypt-production`.
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  name: letsencrypt-production
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
     email: huynhleminhthinh@email.com
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: This Key References is used to store the ACME/Let's Encrypt Account Private Key, which identifies you as user of the ACME Service.
+    # @see {@link https://github.com/cert-manager/cert-manager/issues/1751#issuecomment-499548453}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     privateKeySecretRef:
-      name: letsencrypt-cluster-issuer-private-key
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Be careful, the Private Key Session will cached DNS Challenges from [Issuer::Lets Encrypt].
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      name: letsencrypt-production-private-key
     solvers:
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
       # @description: Cluster Issuer for HTTP Traffic.
       # @see {@link https://cert-manager.io/docs/configuration/acme/http01/}
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
       - http01:
           ingress:
             class: nginx
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Cluster Issuer for DNS01 Challenges.
+      # @see {@link https://cert-manager.io/docs/configuration/acme/dns01/digitalocean/}
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      - dns01:
+          digitalocean:
+            tokenSecretRef:
+              name: digitalocean-dns01
+              key: access-token
+        selector:
+          matchLabels:
+            "use-digitalocean-dns01-solver": "true"
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  # @describe: `kubectl describe ClusterIssuer letsencrypt-staging`.
+  # ----------------------------------------------------------------------------------------------------------------------------------------------------
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: huynhleminhthinh@email.com
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: This Key References is used to store the ACME/Let's Encrypt Account Private Key, which identifies you as user of the ACME Service.
+    # @see {@link https://github.com/cert-manager/cert-manager/issues/1751#issuecomment-499548453}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    privateKeySecretRef:
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Be careful, the Private Key Session will cached DNS Challenges from [Issuer::Lets Encrypt].
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      name: letsencrypt-staging-private-key
+    solvers:
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Cluster Issuer for HTTP Traffic.
+      # @see {@link https://cert-manager.io/docs/configuration/acme/http01/}
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      - http01:
+          ingress:
+            class: nginx
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Cluster Issuer for DNS01 Challenges.
+      # @see {@link https://cert-manager.io/docs/configuration/acme/dns01/digitalocean/}
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      - dns01:
+          digitalocean:
+            tokenSecretRef:
+              name: digitalocean-dns01
+              key: access-token
+        selector:
+          matchLabels:
+            "use-digitalocean-dns01-solver": "true"
 

@@ -52,7 +52,7 @@ resource "google_compute_instance" "load-balancers" {
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     name         = "load-balancer-0${(count.index + local.offset) + 1}"
     hostname     = "load-balancer-0${(count.index + local.offset) + 1}.e8s.io"
-    machine_type = "e2-highmem-2" # [["e2-small"], ["e2-highmem-2"]] -> [["2CPUs :: 2GBs RAM"], ["2CPUs :: 16GBs RAM"]]
+    machine_type = "e2-small" # [["e2-small"], ["e2-highmem-2"]] -> [["2CPUs :: 2GBs RAM"], ["2CPUs :: 16GBs RAM"]]
     tags         = ["load-balancers"]
 
     metadata = {
@@ -167,11 +167,11 @@ resource "google_compute_instance" "private-load-balancers" {
     # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance#nested_scheduling}
     scheduling {
         # @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance#automatic_restart}
-        preemptible                 = false
-        automatic_restart           = true
-        on_host_maintenance         = "MIGRATE" # ["MIGRATE", "TERMINATE"]
-        provisioning_model          = "STANDARD" # ["STANDARD", "SPOT"]
-        # instance_termination_action = "STOP" # ["DELETE", "STOP"]
+        preemptible                 = true
+        automatic_restart           = false
+        on_host_maintenance         = "TERMINATE" # ["MIGRATE", "TERMINATE"]
+        provisioning_model          = "SPOT" # ["STANDARD", "SPOT"]
+        instance_termination_action = "STOP" # ["DELETE", "STOP"]
     }
 
     # @see {@link https://stackoverflow.com/questions/68269560/how-to-run-a-bash-script-in-gcp-vm-using-terraform}

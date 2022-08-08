@@ -2,30 +2,38 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: grafana
+  name: wildcard-grafana
   # @describe: `kubectl describe certificate --namespace monitoring`.
   # @describe: `kubectl get secrets --namespace monitoring`.
   namespace: monitoring
+  labels:
+    use-digitalocean-dns01-solver: "true"
 spec:
+  commonName: "*.grafana.e8s.io"
   dnsNames:
-    - grafana.e8s.io
-  secretName: grafana-tls
+    - "grafana.e8s.io"
+    - "*.grafana.e8s.io"
+  secretName: wildcard-grafana-tls
   issuerRef:
-    name: letsencrypt-cluster-issuer
+    name: letsencrypt-production
     kind: ClusterIssuer
 
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: prometheus
+  name: wildcard-prometheus
   # @describe: `kubectl describe certificate --namespace monitoring`.
   # @describe: `kubectl get secrets --namespace monitoring`.
   namespace: monitoring
+  labels:
+    use-digitalocean-dns01-solver: "true"
 spec:
+  commonName: "*.prometheus.e8s.io"
   dnsNames:
-    - prometheus.e8s.io
-  secretName: prometheus-tls
+    - "prometheus.e8s.io"
+    - "*.prometheus.e8s.io"
+  secretName: wildcard-prometheus-tls
   issuerRef:
-    name: letsencrypt-cluster-issuer
+    name: letsencrypt-production
     kind: ClusterIssuer

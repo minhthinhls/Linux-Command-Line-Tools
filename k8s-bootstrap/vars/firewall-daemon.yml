@@ -20,6 +20,7 @@ k8s_shared_ports:
   - 80/tcp
   - 443/tcp
   - 8090/tcp
+  - 9100/tcp # [Service::NodePort] Prometheus Metrics Server.
   - 10250/tcp
   - 10255/tcp
   - 10256/tcp # Google External Load Balancer Health Checks.

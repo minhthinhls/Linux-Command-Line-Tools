@@ -1,0 +1,21 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rest-api-staging
+  namespace: argocd-system
+spec:
+  project: rest-api
+  source:
+    repoURL: https://gitlab.com/huynhleminhthinh/rest-api.git
+    targetRevision: v2-staging
+    path: ./manifest
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rest-api-staging
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false

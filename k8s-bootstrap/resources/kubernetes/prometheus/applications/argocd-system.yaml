@@ -1,0 +1,146 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: argocd-agent
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: argocd-monitoring
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/instance: kubernetes
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.32.1
+spec:
+  image: quay.io/prometheus/prometheus:v2.32.1
+  nodeSelector:
+    kubernetes.io/os: linux
+  replicas: 1
+  resources:
+    requests:
+      memory: 400Mi
+  ruleSelector: { }
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: prometheus-k8s
+  # serviceMonitorNamespaceSelector: { } # Match all Namespaces
+  serviceMonitorNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: argocd-system
+  serviceMonitorSelector: { } # Match all ServiceMonitors.
+  version: 2.32.1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-agent
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: argocd-monitoring
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/instance: kubernetes
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.32.1
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: argocd-agent
+    app.kubernetes.io/managed-by: prometheus-operator
+    app.kubernetes.io/version: 2.32.1
+    operator.prometheus.io/name: argocd-agent
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Connect to Kubernetes Service throughout different Namespaces.
+# @see {@link https://stackoverflow.com/questions/59844622/ingress-configuration-for-k8s-in-different-namespaces#59845018}
+# @see {@link https://stackoverflow.com/questions/51878195/kubernetes-cross-namespace-ingress-network#66010353}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-agent
+  namespace: argocd-system
+spec:
+  type: ExternalName
+  externalName: argocd-agent.monitoring.svc.cluster.local
+  ports:
+    - port: 9090
+      protocol: TCP
+
+#  ---
+#  apiVersion: cert-manager.io/v1
+#  kind: Certificate
+#  metadata:
+#    name: wildcard-argocd
+#    # @describe: `kubectl describe certificate --namespace argocd-system`.
+#    # @describe: `kubectl get secrets --namespace argocd-system`.
+#    namespace: argocd-system
+#  spec:
+#    dnsNames:
+#      - prometheus.argocd.e8s.io
+#    secretName: wildcard-argocd-tls
+#    issuerRef:
+#      name: letsencrypt-production
+#      kind: ClusterIssuer
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-agent
+  namespace: argocd-system
+  # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    # @deprecated: Deprecated from Kubernetes v1.22+.
+    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
+    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
+    kubernetes.io/ingress.class: nginx
+    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+    - hosts:
+        - prometheus.argocd.e8s.io
+      secretName: wildcard-argocd-tls
+    - hosts:
+        - dashboard.prometheus.argocd.e8s.io
+      secretName: wildcard-argocd-tls
+  rules:
+    - host: prometheus.argocd.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-agent
+                port:
+                  number: 9090
+    - host: dashboard.prometheus.argocd.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-agent
+                port:
+                  number: 9090
+

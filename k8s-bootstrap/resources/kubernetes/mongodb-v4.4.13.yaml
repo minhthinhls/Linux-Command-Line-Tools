@@ -195,7 +195,7 @@ spec:
 #      - mongo-express.e8s.io
 #    secretName: mongo-express-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 #  ---
@@ -211,7 +211,7 @@ spec:
 #      - mongo-dashboard.e8s.io
 #    secretName: mongo-dashboard-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 ---
@@ -236,13 +236,16 @@ metadata:
 spec:
   tls:
     - hosts:
-        - mongo-express.e8s.io
-      secretName: mongo-express-tls
+        - mongodb.e8s.io
+      secretName: wildcard-mongodb-tls
     - hosts:
-        - mongo-dashboard.e8s.io
-      secretName: mongo-dashboard-tls
+        - express.mongodb.e8s.io
+      secretName: wildcard-mongodb-tls
+    - hosts:
+        - dashboard.mongodb.e8s.io
+      secretName: wildcard-mongodb-tls
   rules:
-    - host: mongo-express.e8s.io
+    - host: mongodb.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
@@ -255,7 +258,20 @@ spec:
                 name: mongo-express-service
                 port:
                   number: 27027
-    - host: mongo-dashboard.e8s.io
+    - host: express.mongodb.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          # @deprecated: [- path: /mongo-express]
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mongo-express-service
+                port:
+                  number: 27027
+    - host: dashboard.mongodb.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.

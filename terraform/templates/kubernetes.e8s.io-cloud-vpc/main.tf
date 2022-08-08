@@ -52,8 +52,8 @@ module "vpc-peering-ingress-01" {
     }
     current = "https://www.googleapis.com/compute/v1/projects/${local.project_ids["ingress-01"]}/global/networks/global-vpc"
     others = [
-    for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["ingress-01"]]))
-    : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
+        for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["ingress-01"]]))
+        : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
     ]
 }
 
@@ -92,8 +92,8 @@ module "vpc-peering-worker-01" {
     }
     current = "https://www.googleapis.com/compute/v1/projects/${local.project_ids["worker-01"]}/global/networks/global-vpc"
     others = [
-    for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-01"]]))
-    : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
+        for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-01"]]))
+        : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
     ]
 }
 
@@ -112,7 +112,7 @@ module "vpc-peering-worker-02" {
     }
     current = "https://www.googleapis.com/compute/v1/projects/${local.project_ids["worker-02"]}/global/networks/global-vpc"
     others = [
-    for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-02"]]))
-    : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
+        for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-02"]]))
+        : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
     ]
 }

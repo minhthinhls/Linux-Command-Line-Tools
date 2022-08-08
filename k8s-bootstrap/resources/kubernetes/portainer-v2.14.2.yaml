@@ -170,7 +170,7 @@ spec:
 #      - portainer.e8s.io
 #    secretName: portainer-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 #  ---
@@ -186,7 +186,7 @@ spec:
 #      - portainer-dashboard.e8s.io
 #    secretName: portainer-dashboard-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 ---
@@ -212,10 +212,10 @@ spec:
   tls:
     - hosts:
         - portainer.e8s.io
-      secretName: portainer-tls
+      secretName: wildcard-portainer-tls
     - hosts:
-        - portainer-dashboard.e8s.io
-      secretName: portainer-dashboard-tls
+        - dashboard.portainer.e8s.io
+      secretName: wildcard-portainer-tls
   rules:
     - host: portainer.e8s.io
       http:
@@ -229,7 +229,7 @@ spec:
                 name: portainer
                 port:
                   number: 9000
-    - host: portainer-dashboard.e8s.io
+    - host: dashboard.portainer.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.

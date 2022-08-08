@@ -1,5 +1,13 @@
 # .bashrc
 
+# Include try-catch.sh as Bash Library.
+source ~/try-catch.sh
+
+# Define custom exception types
+export ERR_BAD=100
+export ERR_WORSE=101
+export ERR_CRITICAL=102
+
 export SPLIT_LINE="------------------------------------------------------------------------------------------------------------------------------------------------------";
 
 # @see {@link https://k21academy.com/docker-kubernetes/the-connection-to-the-server-localhost8080-was-refused}
@@ -304,6 +312,11 @@ alias k8s-logs='__Pod_Shell_Display_Logs__() {
   return 1;
 }; __Pod_Shell_Display_Logs__';
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Perform Try-Catch Blocks in Bash Command Line Interfaces.
+# @see {@link https://stackoverflow.com/questions/22009364/is-there-a-try-catch-command-in-bash/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
 # [COMMAND] > k8s-exec | > k8s-exec [DEPLOYMENT]
 alias k8s-exec='__Pod_Shell_Execution__() {
   if [ "$#" -eq 0 ]; then
@@ -311,6 +324,11 @@ alias k8s-exec='__Pod_Shell_Execution__() {
     return 1;
   fi
   local args="$(echo "$1" | sed "s/pod\///g")";
+  local namespace="$(kubens --current)";
+
+  ### ------------------------------------- ###
+  ### --- CURRENTLY DISABLE THIS METHOD --- ###
+  ### ------------------------------------- ###
   local pods="$(
     kubectl get pods \
     --all-namespaces \
@@ -319,9 +337,26 @@ alias k8s-exec='__Pod_Shell_Execution__() {
     | grep "$args"   \
     | head --lines 1 ;
   )";
-  local namespace="$(kubens --current)";
+
+  ### ------------------------------------- ###
+  ### --- CURRENTLY ENABLED THIS METHOD --- ###
+  ### ------------------------------------- ###
+  local pods="$(
+    kubectl get pods \
+    --namespace="$namespace" \
+    --output custom-columns=":metadata.name" \
+    --no-headers     \
+    | grep "$args"   \
+    | head --lines 1 ;
+  )";
   echo ">>> DEBUG -- [POD: $pods] -- [NAMESPACE: $namespace]";
-  kubectl exec --namespace "$namespace" -it "$pods" -- /bin/bash;
+  {
+    kubectl exec --namespace "$namespace" "$pods" -- cat /etc/os-release 2> /dev/null;
+  } && {
+    kubectl exec --namespace "$namespace" -it "$pods" -- /bin/bash 2> /dev/null;
+  } || {
+    kubectl exec --namespace "$namespace" -it "$pods" -- /bin/sh 2> /dev/null;
+  }
   unset -f __Pod_Shell_Execution__;
   return 1;
 }; __Pod_Shell_Execution__';

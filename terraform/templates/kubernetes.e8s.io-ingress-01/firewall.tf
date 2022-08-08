@@ -29,7 +29,13 @@ resource "google_compute_firewall" "kubernetes-shared-ports" {
     network = google_compute_network.global_vpc.name
     allow {
         protocol = "tcp"
-        ports    = ["8090", "10250", "10255", "10256"] # [10256] Google External Load Balancer Health Checks.
+        ports    = [
+            "8090",
+            "9100", # [9100] Node Port Prometheus Metrics Server.
+            "10250",
+            "10255",
+            "10256", # [10256] Google External Load Balancer Health Checks.
+        ]
     }
     allow {
         protocol = "udp"

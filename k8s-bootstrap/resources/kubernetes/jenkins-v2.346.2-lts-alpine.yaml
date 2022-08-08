@@ -175,22 +175,6 @@ spec:
     app.kubernetes.io/name: jenkins
     app.kubernetes.io/instance: jenkins
 
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: jenkins
-  # @describe: `kubectl describe certificate --namespace jenkins-system`.
-  # @describe: `kubectl get secrets --namespace jenkins-system`.
-  namespace: jenkins-system
-spec:
-  dnsNames:
-    - jenkins.e8s.io
-  secretName: jenkins-tls
-  issuerRef:
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
-
 #  ---
 #  apiVersion: cert-manager.io/v1
 #  kind: Certificate
@@ -201,10 +185,10 @@ spec:
 #    namespace: jenkins-system
 #  spec:
 #    dnsNames:
-#      - jenkins-dashboard.e8s.io
-#    secretName: jenkins-dashboard-tls
+#      - jenkins.e8s.io
+#    secretName: jenkins-tls
 #    issuerRef:
-#      name: letsencrypt-cluster-issuer
+#      name: letsencrypt-production
 #      kind: ClusterIssuer
 
 ---
@@ -230,10 +214,10 @@ spec:
   tls:
     - hosts:
         - jenkins.e8s.io
-      secretName: jenkins-tls
+      secretName: wildcard-jenkins-tls
     - hosts:
-        - jenkins-dashboard.e8s.io
-      secretName: jenkins-dashboard-tls
+        - dashboard.jenkins.e8s.io
+      secretName: wildcard-jenkins-tls
   rules:
     - host: jenkins.e8s.io
       http:
@@ -247,7 +231,7 @@ spec:
                 name: jenkins
                 port:
                   number: 8080
-    - host: jenkins-dashboard.e8s.io
+    - host: dashboard.jenkins.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.

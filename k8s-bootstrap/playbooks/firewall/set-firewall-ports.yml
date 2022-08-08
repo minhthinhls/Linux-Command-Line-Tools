@@ -1,0 +1,177 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/playbook"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/playbook
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Configure Firewall Rules. Must provide Root Privileges.
+# @see {@link https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-8}
+# @see {@link https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/security_guide/sec-working_with_zones}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: >>> Firewalld Targets <<<
+# @detail: When a packet arrives at a zone and there are no rules defined to match it, the zone uses it's target to determine what action to take.
+# [ACCEPT] - A zone configured with an ACCEPT target will accept every packet that does not match any rule.
+# [REJECT] - A zone configured with a REJECT target every packet not matching any rule.
+# [DROP] - A zone configured with a DROP target will drop every packet not matching a rule.
+# @see {@link https://www.putorius.net/introduction-to-firewalld-basics.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: >>> Firewalld Zone Specification <<<
+# @detail: There are a number of zones provided by firewalld.
+# + [drop]: All incoming connections are dropped without notification, whereas all outgoing connections are allowed.
+# + [block]: All incoming connections are rejected with an icmp-host-prohibited message, whereas all outgoing connections are allowed.
+# + [public]: This zone is intended to be used in untrusted public areas. Other computers on this network are not to be trusted.
+# + [external]: This zone is intended to be used on external networks with NAT masquerading enabled.
+# + [internal]: This zone is intended to be used on internal networks when your system acts as a gateway or router. Other systems on this network are generally trusted.
+# + [dmz]: This zones is intended to be used for computers located in your demilitarized zone that will have limited access to the rest of your network.
+# + [work]: This zone is intended to be used for work machines. Other systems on this network are generally trusted.
+# + [home]: This zone is intended to be used for home machines. Other systems on this network are generally trusted.
+# + [trusted]: All network connections are accepted and other systems are trusted.
+# @see {@link https://www.techrepublic.com/article/how-to-manage-zones-on-centos-7-with-firewalld/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+- hosts: [ masters, workers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files:
+    - "{{ inventory_dir }}/vars/node-env.yml"
+    - "{{ inventory_dir }}/vars/cluster-info.yml"
+    - "{{ inventory_dir }}/vars/firewall-daemon.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    - name: Install `firewalld`.
+      yum:
+        name: firewalld
+        state: present
+      when: False # Currently Disable.
+
+    - name: Start & Enable `firewalld`.
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+      when: False # Currently Disable.
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Google Cloud by default will set [zone=trusted] instead of [zone=public] when Interface `eth0` belongs to Internal Network.
+    # @see {@link https://stackoverflow.com/questions/51563643/how-to-change-firewalld-zone-using-ansible#56057846}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Set Public Zone as default Firewall Policy.
+      command: firewall-cmd --set-default-zone=public
+      when: False # Currently Disable.
+
+    - name: Configure `firewalld` on Master Nodes.
+      firewalld:
+        zone: public
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+      loop: "{{ k8s_shared_ports + k8s_master_ports }}"
+      when: "'master' in inventory_hostname"
+
+    - name: Configure `firewalld` on Worker Nodes.
+      firewalld:
+        zone: public
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+      loop: "{{ k8s_shared_ports + k8s_worker_ports }}"
+      when: "'slave' in inventory_hostname or 'worker' in inventory_hostname"
+
+    - name: Open Calico Ports via `firewalld`.
+      firewalld:
+        zone: public
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+      loop: "{{ calico_ports }}"
+      when: k8s_cni == "calico"
+
+    - name: Open Flannel Ports via `firewalld`.
+      firewalld:
+        zone: public
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+      loop: "{{ flannel_ports }}"
+      when: k8s_cni == "flannel"
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Configure Firewall Rules. Provide Family Rule Sets for Cluster Nodes.
+    # @see {@link https://thecodecloud.in/install-configure-kubernetes-k8s-cluster-centos-8-rhel-8/}
+    # @example [PROVISION CLUSTER FAMILY RULE] > firewall-cmd --zone=public --permanent --add-rich-rule 'rule family=ipv4 source address=worker-IP-address/32 accept';
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Set Firewall Masquarade for either [Public && Trusted] Zones.
+      tags:
+        - firewalld
+        - firewall-cmd
+      firewalld:
+        zone: public
+        masquerade: yes | bool # Cast to boolean to disable WARNING.
+        permanent: true
+        state: enabled
+      when: False # Currently disable this Ansible Tasks.
+
+    - name: Set Firewall for `[[Network Interface]] CNIs` within Public Zones.
+      tags:
+        - firewalld
+        - firewall-cmd
+      firewalld:
+        zone: public
+        interface: cni0
+        permanent: yes
+        state: enabled
+      when: False # Currently disable this Ansible Tasks.
+
+    - name: Set Firewall Rich Rules for Public Zones.
+      tags:
+        - firewalld
+        - firewall-cmd
+      firewalld:
+        zone: public
+        rich_rule: "rule family=ipv4 source address={{ item.private_ip }}/32 accept"
+        permanent: true
+        state: enabled
+      loop: "{{ k8s_nodes }}"
+      when: False # Currently disable this Ansible Tasks.
+
+    - name: Set Firewall Rich Rules for Private Networks.
+      tags:
+        - firewalld
+        - firewall-cmd
+      firewalld:
+        # @arguments [block, dmz, drop, external, home, internal, public, trusted, work]
+        zone: internal
+        rich_rule: "rule family=ipv4 source address={{ item }} accept"
+        permanent: true
+        state: enabled
+      loop:
+        - 10.244.0.0/16 # Flannel Discover Pods Network.
+      when: False # Currently disable this Ansible Tasks.
+
+    - name: Reload firewalld
+      shell: firewall-cmd --reload
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Strip out Comments and Blank Lines with Grep.
+    # @see {@link https://www.linuxtrainingacademy.com/strip-out-comments-blank-lines-grep/}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Get Status of Firewall Daemon after Restart Service.
+      command: firewall-cmd --list-all-zones
+      register: firewalld_status
+
+    - name: Print out Firewall Daemon Status.
+      debug: msg="{{firewalld_status}}"

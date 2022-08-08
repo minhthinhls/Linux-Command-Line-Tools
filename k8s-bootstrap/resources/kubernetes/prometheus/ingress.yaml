@@ -21,10 +21,10 @@ spec:
   tls:
     - hosts:
         - grafana.e8s.io
-      secretName: grafana-tls
+      secretName: wildcard-grafana-tls
     - hosts:
-        - grafana-dashboard.e8s.io
-      secretName: grafana-dashboard-tls
+        - dashboard.grafana.e8s.io
+      secretName: wildcard-grafana-tls
   rules:
     - host: grafana.e8s.io
       http:
@@ -38,7 +38,7 @@ spec:
                 name: grafana
                 port:
                   number: 3000
-    - host: grafana-dashboard.e8s.io
+    - host: dashboard.grafana.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
@@ -74,10 +74,10 @@ spec:
   tls:
     - hosts:
         - prometheus.e8s.io
-      secretName: prometheus-tls
+      secretName: wildcard-prometheus-tls
     - hosts:
-        - prometheus-dashboard.e8s.io
-      secretName: prometheus-dashboard-tls
+        - dashboard.prometheus.e8s.io
+      secretName: wildcard-prometheus-tls
   rules:
     - host: prometheus.e8s.io
       http:
@@ -88,10 +88,10 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: prometheus-operated
+                name: prometheus-k8s # @description: [prometheus-operated] sometime cause dashboard not working.
                 port:
                   number: 9090
-    - host: prometheus-dashboard.e8s.io
+    - host: dashboard.prometheus.e8s.io
       http:
         paths:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
@@ -100,7 +100,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: prometheus-operated
+                name: prometheus-k8s # @description: [prometheus-operated] sometime cause dashboard not working.
                 port:
                   number: 9090
 

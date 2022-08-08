@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aimvector-system
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Metrics Server [[Live-ness & Readiness]] failed on working properly.
+# @see {@link https://stackoverflow.com/questions/63875585/service-selector-vs-deployment-selector-matchlabels#63876360}
+# @see {@link https://medium.com/@zwhitchcox/matchlabels-labels-and-selectors-explained-in-detail-for-beginners-d421bdd05362/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aimvector
+  namespace: aimvector-system
+  labels:
+    app: aimvector # For Node Scheduling.
+spec:
+  selector:
+    matchLabels:
+      app: aimvector # Match Pods' Labels.
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: aimvector
+    spec:
+      containers:
+        - name: aimvector
+          image: aimvector/python:metrics
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aimvector
+  namespace: aimvector-system
+  labels:
+    app: aimvector
+spec:
+  type: ClusterIP
+  selector:
+    app: aimvector
+  ports:
+    - protocol: TCP
+      name: metrics
+      port: 8080
+      targetPort: 5000
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: aimvector
+  namespace: aimvector-system
+  labels:
+spec:
+  endpoints:
+    - interval: 30s
+      targetPort: 8080
+      path: /metrics
+      port: metrics
+  selector:
+    matchLabels:
+      app: aimvector # Match Service' Labels Name.
+  namespaceSelector:
+    matchNames:
+      - aimvector-system
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aimvector
+  namespace: aimvector-system
+  # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    # @deprecated: Deprecated from Kubernetes v1.22+.
+    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
+    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
+    kubernetes.io/ingress.class: nginx
+    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+    - hosts:
+        - aimvector.e8s.io
+      secretName: wildcard-aimvector-tls
+  rules:
+    - host: aimvector.e8s.io
+      http:
+        paths:
+          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aimvector
+                port:
+                  number: 8080
+

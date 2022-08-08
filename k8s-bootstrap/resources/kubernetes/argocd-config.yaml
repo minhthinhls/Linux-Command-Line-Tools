@@ -1,0 +1,57 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Re-Configure ArgoCD ConfigMap for adding new Guest User.
+# @see {@link https://medium.com/geekculture/create-a-new-user-in-argocd-using-the-cli-and-configmap-8cbb27cf5904/}
+# @download {@link https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Login to your ArgoCD Client Interface and change Password for Guest Account.
+# >> argocd login argocd-server.argocd-system.svc.cluster.local --username admin --grpc-web-root-path /
+# >> argocd account update-password --account guest --new-password 12345678 --current-password <PASSWORD>
+# >> argocd account list;
+# >> argocd cluster list;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd-system
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  admin.enabled: "true"
+  accounts.admin: ""
+  accounts.guest: apiKey,login
+  # Specifies regex expression for password
+  passwordPattern: "^.{6,32}$"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create RBAC Permission for ArgoCD Server within Kubernetes Cluster.
+# @see {@link https://medium.com/geekculture/create-a-new-user-in-argocd-using-the-cli-and-configmap-8cbb27cf5904/}
+# @see {@link https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/}
+# @see {@link https://rtfm.co.ua/en/argocd-users-access-and-rbac/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd-system
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # ["admin", "readonly", "" -> Disable All Default Access].
+  policy.default: role:readonly
+  policy.csv: |
+    p, role:admin , applications , *      , */* , allow
+    p, role:admin , clusters     , get    , *   , allow
+    p, role:admin , repositories , get    , *   , allow
+    p, role:admin , repositories , create , *   , allow
+    p, role:admin , repositories , update , *   , allow
+    p, role:admin , repositories , delete , *   , allow
+
+    p, role:admin , clusters     , get    , *   , allow
+    p, role:admin , repositories , get    , *   , allow
+
+    g, guest, role:readonly

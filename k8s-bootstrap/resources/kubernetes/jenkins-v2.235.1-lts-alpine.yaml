@@ -188,7 +188,7 @@ spec:
     - jenkins.e8s.io
   secretName: jenkins-tls
   issuerRef:
-    name: letsencrypt-cluster-issuer
+    name: letsencrypt-production
     kind: ClusterIssuer
 
 ---

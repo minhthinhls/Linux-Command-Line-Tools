@@ -8,12 +8,39 @@ Thus, Ansible Kubernetes Runtime (Step-2) must be re-run to apply
 the following configuration before bootstrap Kubernetes Cluster.
 
 ---
-Get ArgoCD Default Admin Password within Kubernetes Secret.
+@description: Get ArgoCD Default Admin Password within Kubernetes Secret.
 > echo $(kubectl --namespace argocd-system get secret argocd-initial-admin-secret --output jsonpath="{.data.password}" | base64 --decode);
 
 ---
-Get Jenkins Default Admin Password within Kubernetes Container.
+@description: Create ArgoCD Guest User and Apply Guest Password via Kubernetes ArgoCD ConfigMap.
+@ref {@link <PROJECT>/k8s-bootstrap/resources/kubernetes/argocd-config.yaml}
+
+---
+@description: Get Jenkins Default Admin Password within Kubernetes Container.
 > echo $(cat /var/jenkins_home/secrets/initialAdminPassword);
+
+---
+@description: Install Jenkins Plugin: [Kubernetes, Kubernetes CLI, Git, Gitlab, Credentials, Credentials Binding, ...etc].
+@see {@link https://jenkins.e8s.io/pluginManager/available}
+
+---
+@description: Install Jenkins Plugin: [Generic Webhook Trigger, ...etc].
+@see {@link https://cloudbooklet.com/jenkins-how-to-build-a-specific-branch-on-github/}
+@see {@link https://stackoverflow.com/questions/32108380/jenkins-how-to-build-a-specific-branch#67832392}
+
+---
+@description: Configure RBAC Permission :: [Admin, Guess, ...etc].
+@see {@link https://docs.bitnami.com/azure-templates/apps/jenkins/troubleshooting/configure-jenkins-security/}
+
+@description: Create [Guess] User and Apply Read-Only Permission.
+@target {@link https://jenkins.e8s.io/configureSecurity/}
+@target {@link https://jenkins.e8s.io/securityRealm/}
+
+---
+@description: Resolve No Valid Crumb on Jenkins HTTP Request pass-through Reverse-Proxy (NGINX).
+@see {@link https://stackoverflow.com/questions/44711696/jenkins-403-no-valid-crumb-was-included-in-the-request}
+@see {@link https://jenkins.e8s.io/configureSecurity/}
+>> [CSRF Protection]::[Enable Proxy Compatibility]
 
 ---
 @description: Jenkins Tutorial
@@ -40,7 +67,12 @@ Get Jenkins Default Admin Password within Kubernetes Container.
     + Command Arguments: <empty>
 
 ---
-@description: Prometheus Tutorial
+@description: Prevent Jenkins Built on specific Branches: [Master, ...etc].
+>> Build Triggers >> When Changes pushed to GitLab. GitLab webhook URL: <WEB-URL>
+>> Filter Branches by Names >> Fill-in [master]
+
+---
+@description: Prometheus Tutorial.
 @see {@link https://github.com/prometheus-operator/kube-prometheus/}
 > kubectl apply --server-side --filename ./resources/kubernetes/prometheus/manifests/setup/;
 > until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done;

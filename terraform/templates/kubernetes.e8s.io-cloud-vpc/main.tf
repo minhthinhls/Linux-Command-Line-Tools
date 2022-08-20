@@ -11,6 +11,7 @@ variable "projects" {
         "master-01": "../kubernetes.e8s.io-master-01/service-account.json",
         "worker-01": "../kubernetes.e8s.io-worker-01/service-account.json",
         "worker-02": "../kubernetes.e8s.io-worker-02/service-account.json",
+        "worker-03": "../kubernetes.e8s.io-worker-03/service-account.json",
     }
 }
 
@@ -113,6 +114,26 @@ module "vpc-peering-worker-02" {
     current = "https://www.googleapis.com/compute/v1/projects/${local.project_ids["worker-02"]}/global/networks/global-vpc"
     others = [
         for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-02"]]))
+        : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
+    ]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+provider "google" {
+    alias = "worker-03"
+    credentials = local.credentials["worker-03"]
+    project = local.project_ids["worker-03"]
+}
+
+module "vpc-peering-worker-03" {
+    source = "./modules/vpc-peering/"
+    providers = {
+        google = google.worker-03 # [google.worker-03, google.worker-01, ...];
+    }
+    current = "https://www.googleapis.com/compute/v1/projects/${local.project_ids["worker-03"]}/global/networks/global-vpc"
+    others = [
+        for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-03"]]))
         : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
     ]
 }

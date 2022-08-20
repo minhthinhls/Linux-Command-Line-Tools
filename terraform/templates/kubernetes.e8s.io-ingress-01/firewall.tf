@@ -42,7 +42,7 @@ resource "google_compute_firewall" "kubernetes-shared-ports" {
         ports    = ["8285", "8472"] # Flannel Ports
     }
     target_tags   = ["masters", "workers"]
-    source_ranges = ["172.16.0.0/22"]
+    source_ranges = ["172.16.0.0/16"]
 }
 
 resource "google_compute_firewall" "kubernetes-master-ports" {
@@ -53,7 +53,7 @@ resource "google_compute_firewall" "kubernetes-master-ports" {
         ports    = ["2379-2380", "6443", "10251", "10252"]
     }
     target_tags   = ["masters"]
-    source_ranges = ["172.16.0.0/22"]
+    source_ranges = ["172.16.0.0/16"]
 }
 
 resource "google_compute_firewall" "kubernetes-worker-ports" {
@@ -64,7 +64,7 @@ resource "google_compute_firewall" "kubernetes-worker-ports" {
         ports    = ["30000-32767"]
     }
     target_tags   = ["workers"]
-    source_ranges = ["172.16.0.0/22"]
+    source_ranges = ["172.16.0.0/16"]
 }
 
 resource "google_compute_firewall" "kubernetes-egress-ports" {

@@ -1,7 +1,7 @@
 # .bashrc
 
 # Include try-catch.sh as Bash Library.
-source ~/try-catch.sh
+source ~/try-catch.sh 2> /dev/null
 
 # Define custom exception types
 export ERR_BAD=100

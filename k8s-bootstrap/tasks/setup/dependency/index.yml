@@ -17,5 +17,12 @@
     - "'load-balancer' in ansible_hostname"
   delegate_to: load_balancers
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Refactor this code. Moving file directly using Ansible File Modules.
+# @see {@link https://stackoverflow.com/questions/57772116/use-count-in-terraform-with-an-offset/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Install Bash Alias within Shell for all [Load-Balancers && Masters && Workers] Node.
   shell: "curl https://raw.githubusercontent.com/minhthinhls/Linux-Command-Line-Tools/master/workspace/.bashrc | tee ~/.bashrc"
+
+- name: Install Bash Tools within Shell for all [Load-Balancers && Masters && Workers] Node.
+  shell: "curl https://raw.githubusercontent.com/minhthinhls/Linux-Command-Line-Tools/master/workspace/try-catch.sh | tee ~/try-catch.sh"

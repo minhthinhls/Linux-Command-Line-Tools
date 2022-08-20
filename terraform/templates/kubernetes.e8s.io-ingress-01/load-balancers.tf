@@ -60,6 +60,7 @@ resource "google_compute_instance" "load-balancers" {
         startup-script = <<EOF
             sudo hostnamectl set-hostname 'load-balancer-0${(count.index + local.offset) + 1}.e8s.io';
             echo 'load-balancer-0${(count.index + local.offset) + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;
+            sudo cp --force /root/.bashrc /home/admin.e8s.io/.bashrc 2> /dev/null;
         EOF
     }
 
@@ -141,6 +142,7 @@ resource "google_compute_instance" "private-load-balancers" {
         startup-script = <<EOF
             sudo hostnamectl set-hostname 'load-balancer-0${(count.index + local.offset + local.expose) + 1}.e8s.io';
             echo 'load-balancer-0${(count.index + local.offset + local.expose) + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;
+            sudo cp --force /root/.bashrc /home/admin.e8s.io/.bashrc 2> /dev/null;
         EOF
     }
 

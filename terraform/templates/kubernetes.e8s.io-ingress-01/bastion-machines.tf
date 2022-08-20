@@ -60,6 +60,7 @@ resource "google_compute_instance" "bastion-machines" {
         startup-script = <<EOF
             sudo hostnamectl set-hostname 'bastion-machine-0${(count.index + local.bastion_machines.offset) + 1}.e8s.io';
             echo 'bastion-machine-0${(count.index + local.bastion_machines.offset) + 1}.e8s.io' | sudo tee /etc/hostname > /dev/null;
+            sudo cp --force /root/.bashrc /home/admin.e8s.io/.bashrc 2> /dev/null;
         EOF
     }
 

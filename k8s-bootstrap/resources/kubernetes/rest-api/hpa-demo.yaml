@@ -1,0 +1,159 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  # [ALTERNATIVE COMMAND] > kubectl create namespace [NAMESPACE]
+  name: hpa-rest-api
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml
+  labels:
+    name: hpa-rest-api
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: traffic-generator
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=hpa-rest-api
+  namespace: hpa-rest-api
+spec:
+  containers:
+    - name: alpine
+      image: alpine
+      args:
+        - sleep
+        - "100000000"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rest-api
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=hpa-rest-api
+  namespace: hpa-rest-api
+  labels:
+    app: rest-api
+spec:
+  selector:
+    matchLabels:
+      app: rest-api
+  # replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: rest-api
+    spec:
+      containers:
+        - name: rest-api
+          image: huynhleminhthinh/rest-api:high-cpu
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: "500m"
+            limits:
+              memory: "500Mi"
+              cpu: "2000m"
+
+#  ---
+#  apiVersion: autoscaling/v1
+#  kind: HorizontalPodAutoscaler
+#  metadata:
+#    name: rest-api
+#    # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=hpa-rest-api
+#    namespace: hpa-rest-api
+#  spec:
+#    scaleTargetRef:
+#      apiVersion: apps/v1
+#      kind: Deployment
+#      name: rest-api
+#    minReplicas: 1
+#    maxReplicas: 10
+#    targetCPUUtilizationPercentage: 95
+
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Enable Cluster Horizontal Pods Auto-Scaler via [[KubernetesAPIs := "autoscaling/v2"]].
+# @see {@link https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rest-api
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=hpa-rest-api
+  namespace: hpa-rest-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rest-api
+  minReplicas: 1
+  maxReplicas: 10
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0 # Number of seconds for which past recommendations should be considered while scaling up or scaling down. 0 <= StabilizationWindowSeconds <= 3600 (1 hour)
+      selectPolicy: Max # [=MOST]
+      policies:
+        - type: Percent
+          value: 100 # Allows at [MOST] 100% of the currently running replicas to be added every 15 seconds, till the HPA reaches its steady state. [0 < value]
+          periodSeconds: 15 # The window of time for which the policy should hold true. 0 < PeriodSeconds <= 1800 (30 min).
+        - type: Pods
+          value: 10 # Allows at [MOST] 10 replicas to be added every 15 seconds, till the HPA reaches its steady state. [0 < value]
+          periodSeconds: 15 # The window of time for which the policy should hold true. 0 < PeriodSeconds <= 1800 (30 min).
+    scaleDown:
+      stabilizationWindowSeconds: 300 # Number of seconds for which past recommendations should be considered while scaling up or scaling down. 0 <= StabilizationWindowSeconds <= 3600 (1 hour)
+      selectPolicy: Max # [=MOST]
+      policies:
+        - type: Percent
+          value: 100 # Allows at [MOST] 100% of the current replicas to be scaled down in 15 seconds. [0 < value]
+          periodSeconds: 15 # The window of time for which the policy should hold true. 0 < PeriodSeconds <= 1800 (30 min).
+        - type: Pods
+          value: 10 # Allows at [MOST] 10 replicas to be scaled down in 15 seconds. [0 < value]
+          periodSeconds: 15 # The window of time for which the policy should hold true. 0 < PeriodSeconds <= 1800 (30 min).
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clusterip
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=hpa-rest-api
+  namespace: hpa-rest-api
+  labels:
+    app: rest-api
+spec:
+  type: ClusterIP
+  selector:
+    app: rest-api
+  ports:
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodeport
+  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=hpa-rest-api
+  namespace: hpa-rest-api
+  labels:
+    app: rest-api
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local # ["Cluster", "Local"]
+  selector:
+    app: rest-api
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      nodePort: 31080
+      targetPort: 8080
+

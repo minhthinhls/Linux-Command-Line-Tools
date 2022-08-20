@@ -19,6 +19,12 @@
   delegate_to: localhost
   shell: kubectl apply --filename {{ item }}
   loop:
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Installation Documents for CSI-Driver: [[ Longhorn-Storage ]].
+    # @see {@link https://longhorn.io/docs/1.3.0/deploy/install/#installation-requirements}.
+    # @see {@link https://longhorn.io/docs/1.3.0/deploy/install/#installing-nfsv4-client}.
+    # @see {@link https://longhorn.io/docs/1.3.0/deploy/install/#installing-open-iscsi}.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     - https://raw.githubusercontent.com/longhorn/longhorn/v1.3.0/deploy/prerequisite/longhorn-iscsi-installation.yaml
     - https://raw.githubusercontent.com/longhorn/longhorn/v1.3.0/deploy/prerequisite/longhorn-nfs-installation.yaml
     - https://raw.githubusercontent.com/longhorn/longhorn/v1.3.0/deploy/longhorn.yaml

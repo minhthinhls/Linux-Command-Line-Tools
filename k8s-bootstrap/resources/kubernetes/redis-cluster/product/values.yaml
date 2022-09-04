@@ -1,0 +1,31 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Redis Cluster cannot finish its Bootstrap Phase.
+# @see {@link https://linux.m2osw.com/redis-infamous-waiting-cluster-join-message}
+# @see {@link https://stackoverflow.com/questions/39568561/how-to-solve-redis-cluster-waiting-for-the-cluster-to-join-issue}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+Namespace: redis-cluster-product
+ConfigMap:
+  name: redis-config-v7
+  redis:
+    bootstrap:
+      username: replicator
+      password: "`5$!DfwSJ.Y(d:@M"
+Image:
+  name: redis
+  tag: 7.0.4-alpine
+Deployment:
+  podLabel: redis
+  replicas: 9 # Number of Stateful Pods to Spawn.
+  cluster:
+    replicas: 2 # Example: [9 Pods] && [2 Replica] -> [3 Masters] && [6 Workers].
+Cluster:
+  Bootstrap:
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Clean] Mode will remove `nodes-6379.conf` files from all Nodes after restart.
+    # @description: Moreover, this also enable Redis CLIs to Create & Bootstrap New Cluster.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    strategy: clean # ["clean", "exist"].
+    suspend: 10 # Suspend 10 seconds before bootstrap.
+Service:
+  name: headless

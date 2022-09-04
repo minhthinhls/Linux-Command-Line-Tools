@@ -1,0 +1,45 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create Start-up Scripts Bash for Redis CLIs.
+# @see {@link https://linuxize.com/post/bash-break-continue/}.
+# @see {@link https://tldp.org/LDP/Bash-Beginners-Guide/html/sect_07_01.html}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Values.Deployment.podLabel }}-boot
+  namespace: {{ $.Values.Namespace }}
+data:
+  boot-config.sh: |
+    #!/bin/sh
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    if [ ! -f "/etc/redis/nodes-6379.conf" ] || [ "$BOOTSTRAP_MODE" == "clean" ]; then
+      echo ">> Clean Node Detected! Prepare for Bootstrap Redis Cluster..." ;
+      exit 0 ;
+    fi
+
+    echo ">> Cluster Already been Bootstrap... Run Bash Script for [CLUSTER MEET] to join all Redis Nodes." ;
+    while [ $(timeout 2 redis-cli -c --user "$REDIS_ADMIN_USERNAME" --pass "$REDIS_ADMIN_PASSWORD" ping) != 'PONG' ]; do
+      sleep 2 ;
+    done;
+
+    mkdir -p /tmp/redis/cluster/bootstrap/ ;
+    nslookup {{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local \
+    | grep "Address:" \
+    | tail -n +2      \
+    | awk '{print "CLUSTER MEET "$2" 6379"}' \
+    > /tmp/redis/cluster/bootstrap/commands.txt ;
+
+    mkdir -p /tmp/redis/cluster/bootstrap/ ;
+    nslookup {{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local \
+    | grep "Address:"  \
+    | tail -n +2       \
+    | awk '{print $2}' \
+    > /tmp/redis/cluster/bootstrap/nodes.txt ;
+
+    while read line; do
+      echo "Apply [CLUSTER MEET] for Node - ${line}" ;
+      cat /tmp/redis/cluster/bootstrap/commands.txt \
+      | redis-cli -c -h ${line} --user "$REDIS_ADMIN_USERNAME" --pass "$REDIS_ADMIN_PASSWORD" 2> /dev/null ; # Ignore Host Error
+    done < /tmp/redis/cluster/bootstrap/nodes.txt ;
+    exit 0 ;

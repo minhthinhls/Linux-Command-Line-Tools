@@ -1,0 +1,158 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Values.Deployment.podLabel }}
+  namespace: {{ $.Values.Namespace }}
+spec:
+  serviceName: {{ $.Values.Service.name }}
+  replicas: {{ $.Values.Deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ $.Values.Deployment.podLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.Values.Deployment.podLabel }}
+    spec:
+      initContainers:
+        - name: config-runtime-generator
+          image: {{ $.Values.Image.name }}:{{ $.Values.Image.tag }} # redis:7.0.4-alpine
+          env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: BOOTSTRAP_MODE
+            value: {{ $.Values.Cluster.Bootstrap.strategy }}
+          # ------------------------------------------------------------------------------------------------------------------------------------------
+          # @description: Kubernetes Cluster worked under NAT Gateway Protocol. Hence flag `cluster-announce-ip` must specified.
+          # @see {@link https://github.com/kelseyhightower/kubernetes-redis-cluster/issues/1#issuecomment-676816540}.
+          # ------------------------------------------------------------------------------------------------------------------------------------------
+          command: [ "sh", "-c" ]
+          args:
+            - |
+              # ------------------------------------------------------------------------- #
+              # @description: Reload Configuration to avoid Contaminated Runtime Variables.
+              # @command >> cp -f /tmp/redis/redis.conf /etc/redis/redis.conf ;
+              # ------------------------------------------------------------------------- #
+              cp -rf /tmp/redis/users.acl /etc/redis/users.acl ;
+              cp -rf /tmp/redis/redis.conf /etc/redis/redis.conf ;
+              cp -rf /tmp/redis/boot-config.sh /etc/redis/boot-config.sh ;
+
+              if [ "$BOOTSTRAP_MODE" == "clean" ]; then
+                rm -rf /etc/redis/nodes-6379.conf ;
+              fi
+
+              # ------------------------------------------------------------------------- #
+              # @description: Run Redis Cluster behind NAT Gateway (Kubernetes).
+              # @see {@link https://github.com/docker-library/redis/issues/248}.
+              # ------------------------------------------------------------------------- #
+              # echo "bind $POD_IP" >> /etc/redis/redis.conf ;
+              echo "cluster-announce-ip $POD_IP" >> /etc/redis/redis.conf ;
+              echo "cluster-announce-port 6379" >> /etc/redis/redis.conf ;
+
+              # ------------------------------------------------------------------------- #
+              # @description: Reload Configuration to avoid Contaminated Runtime Variables.
+              # @command >> cp -f /tmp/redis/redis.conf /etc/redis/redis.conf ;
+              # ------------------------------------------------------------------------- #
+              if [ -f "/etc/redis/redis.conf" ]; then
+                echo ">> [Config Found]::['/etc/redis/redis.conf'] ... Skip Initialize Configuration." ;
+              else
+                echo ">> [Config Missing]::['/etc/redis/redis.conf'] ... Initialize Configuration from ['/tmp/redis/redis.conf']." ;
+              fi
+          volumeMounts:
+            - name: longhorn-pv
+              subPath: data
+              mountPath: /data
+            - name: longhorn-pv # runtime-config
+              subPath: config
+              mountPath: /etc/redis/
+            - name: basic-config
+              subPath: redis.conf
+              mountPath: /tmp/redis/redis.conf
+            - name: basic-config-acl
+              subPath: users.acl
+              mountPath: /tmp/redis/users.acl
+            - name: boot-config
+              subPath: boot-config.sh
+              mountPath: /tmp/redis/boot-config.sh
+      containers:
+        - name: {{ $.Values.Deployment.podLabel }}
+          image: {{ $.Values.Image.name }}:{{ $.Values.Image.tag }} # redis:7.0.4-alpine
+          env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: REDIS_ADMIN_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: admin
+                key: username
+          - name: REDIS_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: admin
+                key: password
+          - name: BOOTSTRAP_MODE
+            value: {{ $.Values.Cluster.Bootstrap.strategy }}
+          # ------------------------------------------------------------------------------------------------------------------------------------------
+          # @description: Execute Redis Server within Shell Commands instead of Direct Binary Access.
+          # @see {@link https://faun.pub/redis-high-availability-with-sentinel-on-kubernetes-k8s-a1d67842e0ce/}.
+          # @command: [ "redis-server" ]
+          # @args: [ "/etc/redis/redis.conf" ]
+          # ------------------------------------------------------------------------------------------------------------------------------------------
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              apk add curl bind-tools ; # Dig & Nslookup.
+              nohup sh /etc/redis/boot-config.sh &
+              redis-server /etc/redis/redis.conf ; # [ "redis-server /conf/redis.conf" ]
+          ports:
+            - name: {{ $.Values.Deployment.podLabel }}
+              containerPort: 6379
+          volumeMounts:
+            - name: longhorn-pv
+              subPath: data
+              mountPath: /data
+            - name: longhorn-pv # runtime-config
+              subPath: config
+              mountPath: /etc/redis/
+      volumes:
+        - name: runtime-config
+          emptyDir: { }
+        - name: basic-config
+          configMap:
+            name: {{ $.Values.ConfigMap.name }}
+        - name: basic-config-acl
+          configMap:
+            name: "{{ $.Values.ConfigMap.name }}-acl"
+        - name: boot-config
+          configMap:
+            name: "{{ $.Values.Deployment.podLabel }}-boot"
+  volumeClaimTemplates:
+    - metadata:
+        name: longhorn-pv
+      spec:
+        accessModes: [ "ReadWriteMany" ]
+        storageClassName: "longhorn-delete"
+        resources:
+          requests:
+            storage: 50Mi

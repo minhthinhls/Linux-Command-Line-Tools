@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Values.ConfigMap.name }}-acl
+  namespace: {{ $.Values.Namespace }}
+data:
+  # user "default" is the default user ( act as admin ) and user "replicator" is used by the nodes for the replication.
+  users.acl: |
+    user admin on #c997cf397242646024ee1698bb1d861479779d0b7e21273c9dd55e0ca051a6c1 ~* &* +@all
+    user default on #c997cf397242646024ee1698bb1d861479779d0b7e21273c9dd55e0ca051a6c1 ~* &* +@all
+    user developer on #87eba76e7f3164534045ba922e7770fb58bbd14ad732bbf5ba6f11cc56989e6e ~* &* +@all -@dangerous
+    user maintainer on #87eba76e7f3164534045ba922e7770fb58bbd14ad732bbf5ba6f11cc56989e6e ~* &* +@all -@dangerous
+    user replicator on #65cf6f5f48186a4a6c5de02f156f1642b3873451d9de1607147799023dbf4ef8 +psync +replconf +ping

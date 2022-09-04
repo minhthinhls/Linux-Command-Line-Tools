@@ -1,0 +1,103 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $.Values.Deployment.podLabel }}-bootstrap
+  namespace: {{ $.Values.Namespace }}
+spec:
+  ttlSecondsAfterFinished: 0 # [unit::seconds]
+  backoffLimit: 3 # Number of Maximum Pods to spawn when Job Executed with Error.
+  template:
+    metadata:
+      name: {{ $.Values.Deployment.podLabel }}-bootstrap
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: {{ $.Values.Deployment.podLabel }}-bootstrap
+          image: {{ $.Values.Image.name }}:{{ $.Values.Image.tag }}
+          env:
+          - name: REDIS_ADMIN_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: admin
+                key: username
+          - name: REDIS_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: admin
+                key: password
+          - name: BOOTSTRAP_MODE
+            value: {{ $.Values.Cluster.Bootstrap.strategy }}
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              apk add curl bind-tools ; # Dig & Nslookup.
+              # Last Redis Pod Successfully Started.
+              LAST_POD_INDEX=$(expr {{ $.Values.Deployment.replicas }} - 1);
+
+              redis-cli -c \
+              -h {{ $.Values.Deployment.podLabel }}-"$LAST_POD_INDEX".{{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local \
+              --user "$REDIS_ADMIN_USERNAME" \
+              --pass "$REDIS_ADMIN_PASSWORD" \
+              cluster nodes >> /tmp/action.log 2> /tmp/error.log ;
+
+              # @description: `$?` The exit code of previous command.
+              while [ $? -ne 0 ]; do
+                sleep 2 ; # Sleep 2 seconds
+                echo ">> [$(date)] - Waiting StatefulSet Last Pod [$LAST_POD_INDEX] started..." >> /tmp/action.log ;
+                redis-cli -c \
+                -h {{ $.Values.Deployment.podLabel }}-"$LAST_POD_INDEX".{{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local \
+                --user "$REDIS_ADMIN_USERNAME" \
+                --pass "$REDIS_ADMIN_PASSWORD" \
+                cluster nodes >> /tmp/action.log 2> /tmp/error.log ;
+              done ;
+              echo ">> Successfully started all StatefulSet Pods." >> /tmp/action.log ;
+
+              if [ "$BOOTSTRAP_MODE" == "exist" ]; then
+                sleep infinity ; # Stdin-Blocking.
+              fi
+
+              # @description: Redis Bootstrap cause Unexpected Behaviour when execute too fast.
+              sleep {{ $.Values.Cluster.Bootstrap.suspend }};
+
+              echo ">> [$(TZ=':Asia/Ho_Chi_Minh' date +'(%A) - [%B %Y/%m/%d] - [%Hh:%Mm:%Ss] GMT %Z:00')] - Waiting All Redis Pods Ready for Connections..." >> /tmp/action.log ;
+              while false \
+              {{- range $i, $e := until (.Values.Deployment.replicas | int)}}
+              || [ $(timeout 2 redis-cli -c -h {{ $.Values.Deployment.podLabel }}-{{$i}}.{{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local --user "$REDIS_ADMIN_USERNAME" --pass "$REDIS_ADMIN_PASSWORD" ping) != 'PONG' ] \
+              {{- end}}
+              ; do
+                sleep 2 ;
+                echo ">> [$(TZ=':Asia/Ho_Chi_Minh' date +'(%A) - [%B %Y/%m/%d] - [%Hh:%Mm:%Ss] GMT %Z:00')] - Waiting All Redis Pods Ready for Connections..." >> /tmp/action.log ;
+              done;
+
+              echo "yes" | redis-cli -c \
+              -h {{ $.Values.Deployment.podLabel }}-0.{{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local \
+              --user "$REDIS_ADMIN_USERNAME" \
+              --pass "$REDIS_ADMIN_PASSWORD" \
+              --cluster create \
+              {{- range $i, $e := until (.Values.Deployment.replicas | int)}}
+              "$(dig +short {{ $.Values.Deployment.podLabel }}-{{$i}}.{{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local | head -n1)":6379 \
+              {{- end}}
+              --cluster-replicas {{ $.Values.Deployment.cluster.replicas }} ;
+
+              echo ">> Successfully Bootstrap Kubernetes Redis Cluster." >> /tmp/action.log ;
+              redis-cli -c \
+              -h {{ $.Values.Deployment.podLabel }}-0.{{ $.Values.Service.name }}.{{ $.Values.Namespace }}.svc.cluster.local \
+              --user "$REDIS_ADMIN_USERNAME" \
+              --pass "$REDIS_ADMIN_PASSWORD" \
+              cluster nodes >> /tmp/action.log 2> /tmp/error.log ;
+
+              # --------------------------------------------------------------------------------------------------------------------------------------
+              # @description: Keep Container Alived for Infinity [seconds].
+              # @see {@link https://stackoverflow.com/questions/2935183/bash-infinite-sleep-infinite-blocking#22100106}.
+              # --------------------------------------------------------------------------------------------------------------------------------------
+              # tail --follow /dev/null ; # Non-Blocking [DO NOT USE].
+              sleep infinity ; # Stdin-Blocking.
+          volumeMounts:
+            - name: boot-config
+              subPath: boot-config.sh
+              mountPath: /tmp/redis/boot-config.sh
+      volumes:
+        - name: boot-config
+          configMap:
+            name: "{{ $.Values.Deployment.podLabel }}-boot"

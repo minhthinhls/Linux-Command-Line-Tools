@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Values.Service.name }}
+  namespace: {{ $.Values.Namespace }}
+spec:
+  clusterIP: None
+  ports:
+    - name: {{ $.Values.Deployment.podLabel }}
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: {{ $.Values.Deployment.podLabel }}

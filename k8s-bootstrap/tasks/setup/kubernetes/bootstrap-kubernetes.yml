@@ -8,7 +8,7 @@
   include: "{{ inventory_dir }}/tasks/kubeadm-reset.yml"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
-    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+    - "'master' in inventory_hostname or 'worker' in inventory_hostname"
   delegate_to: masters, workers
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -104,7 +104,7 @@
     state: directory
     owner: root
     mode: 0755
-  when: "'master' in ansible_hostname"
+  when: "'master' in inventory_hostname"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: [Ansible] - By Default `kubectl` looks for file named `config` in the `$HOME/.kube` directory. Otherwise `kubectl` from Ansible failed.
@@ -212,7 +212,7 @@
         owner: root
         mode: "u=rw,g=r,o=r" # Mode::[[ {read: 4}, {write: 2}, {execute: 1} ]]
 
-  when: "'master' in ansible_hostname and ansible_hostname != 'master-01'"
+  when: "'master' in inventory_hostname and inventory_hostname != 'master-01'"
 
 - name: Bootstrap Worker Nodes within Kubernetes Cluster.
   block:
@@ -228,7 +228,7 @@
         daemon-reload: yes
         state: restarted
 
-  when: "'worker' in ansible_hostname"
+  when: "'worker' in inventory_hostname"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: [Add / Remove] Roles to Cluster Nodes.

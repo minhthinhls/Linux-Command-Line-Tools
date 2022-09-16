@@ -73,7 +73,7 @@
     # @arguments [present, latest, absent]
     state: latest
     update_cache: true
-  when: "'load-balancer' in ansible_hostname"
+  when: "'load-balancer' in inventory_hostname"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Configure Firewall Rules. Must provide Root Privileges.

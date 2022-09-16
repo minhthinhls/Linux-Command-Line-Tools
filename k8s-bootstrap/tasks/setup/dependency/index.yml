@@ -7,14 +7,14 @@
   include: "{{ inventory_dir }}/tasks/setup/dependency/master-worker.yml"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
-    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+    - "'master' in inventory_hostname or 'worker' in inventory_hostname"
   delegate_to: masters, workers
 
 - name: Install all Dependency Packages for all [Load-Balancers] Node.
   include: "{{ inventory_dir }}/tasks/setup/dependency/load-balancer.yml"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
-    - "'load-balancer' in ansible_hostname"
+    - "'load-balancer' in inventory_hostname"
   delegate_to: load_balancers
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

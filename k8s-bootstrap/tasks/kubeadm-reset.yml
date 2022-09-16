@@ -31,7 +31,7 @@
   debugger: never # ["always", "never", "on_failed", "on_unreachable", "on_skipped"]
   ignore_errors: True
   failed_when: False
-  when: "'master' in ansible_hostname"
+  when: "'master' in inventory_hostname"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: [Ansible] - The last `etcd` member cannot be removed via `kubeadm` CLIs.
@@ -46,7 +46,7 @@
 
 - name: Remove Worker Nodes at the sametime via [Concurrency / Parallel] Strategy.
   shell: kubeadm reset --force
-  when: "'worker' in ansible_hostname"
+  when: "'worker' in inventory_hostname"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: [Ansible] - How can I write Variables inside the Tasks File ?

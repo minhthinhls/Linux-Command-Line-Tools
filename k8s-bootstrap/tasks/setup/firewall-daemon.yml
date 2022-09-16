@@ -52,7 +52,7 @@
     permanent: yes
     state: enabled
   loop: "{{ k8s_shared_ports + k8s_master_ports }}"
-  when: "'master' in ansible_hostname"
+  when: "'master' in inventory_hostname"
 
 - name: Configure `firewalld` on Worker Nodes.
   firewalld:
@@ -61,7 +61,7 @@
     permanent: yes
     state: enabled
   loop: "{{ k8s_shared_ports + k8s_worker_ports }}"
-  when: "'slave' in ansible_hostname or 'worker' in ansible_hostname"
+  when: "'slave' in inventory_hostname or 'worker' in inventory_hostname"
 
 - name: Open Calico Ports via `firewalld`.
   firewalld:

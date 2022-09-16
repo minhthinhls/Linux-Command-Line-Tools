@@ -120,7 +120,7 @@
 
 - name: 'Install [`kubelet`, `kubeadm`, `kubectl`] packages for Master Nodes.'
   vars:
-    K8S_VERSION: 1.24.2-00.x86_64
+    K8S_VERSION: 1.24.4-00.x86_64
   yum:
     name:
       - kubelet-{{ K8S_VERSION }}
@@ -130,11 +130,11 @@
     # @arguments [present, latest, absent]
     state: latest
     update_cache: true
-  when: "'master' in ansible_hostname"
+  when: "'master' in inventory_hostname"
 
 - name: 'Install [`kubelet`, `kubeadm`, `kubectl`] packages for Worker Nodes.'
   vars:
-    K8S_VERSION: 1.24.2-00.x86_64
+    K8S_VERSION: 1.24.4-00.x86_64
   yum:
     name:
       - kubelet-{{ K8S_VERSION }}
@@ -144,4 +144,4 @@
     # @arguments [present, latest, absent]
     state: latest
     update_cache: true
-  when: "'worker' in ansible_hostname"
+  when: "'worker' in inventory_hostname"

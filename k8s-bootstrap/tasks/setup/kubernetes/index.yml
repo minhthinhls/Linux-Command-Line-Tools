@@ -7,7 +7,7 @@
   include: "{{ inventory_dir }}/tasks/setup/kubernetes/bootstrap-kubernetes.yml"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
-    - "'master' in ansible_hostname or 'worker' in ansible_hostname"
+    - "'master' in inventory_hostname or 'worker' in inventory_hostname"
   delegate_to: masters, workers
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

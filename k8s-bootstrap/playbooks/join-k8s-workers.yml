@@ -1,0 +1,193 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ master-01, workers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files:
+    - "{{ inventory_dir }}/vars/node-env.yml"
+    - "{{ inventory_dir }}/vars/cluster-info.yml"
+    - "{{ inventory_dir }}/vars/firewall-daemon.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: This command will delete all files within specified Directory.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Create Kubernetes PKI Directories.
+      file:
+        path: /etc/kubernetes/pki
+        state: directory
+        mode: 0755
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
+
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
+    # @see {@link https://docs.openshift.com/container-platform/3.11/install_config/configuring_gce.html}
+    # @see {@link https://medium.com/codex/kubernetes-cluster-on-gce-beyond-kubeadm-4a954935e2c8/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Ansible] - Provide Kubernetes Cloud Configuration within Google Cloud Compute Engine.
+    # @see {@link https://stackoverflow.com/questions/67600909/how-to-add-external-gcp-loadbalancer-to-kubespray-cluster/}
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/462#issuecomment-332334787}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Add Kubernetes Cloud Configuration into Initial Master Nodes.
+      template:
+        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        dest: /etc/kubernetes/google-compute-engine.conf
+        force: no # Do not override when file exists.
+      vars:
+        GCP_PROJECT_ID: "{{ gcp_master_04_project_id }}"
+        NODE_TAGS: "{{ inventory_hostname }}"
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "'master' in ansible_hostname or 'master' in inventory_hostname"
+
+    - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[01-04].
+      template:
+        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        dest: /etc/kubernetes/google-compute-engine.conf
+        force: no # Do not override when file exists.
+      vars:
+        GCP_PROJECT_ID: "{{ gcp_worker_04_project_id }}"
+        NODE_TAGS: "{{ inventory_hostname }}"
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
+        - "'worker-01' <= inventory_hostname and inventory_hostname <= 'worker-04'"
+
+    - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[05-08].
+      template:
+        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        dest: /etc/kubernetes/google-compute-engine.conf
+        force: no # Do not override when file exists.
+      vars:
+        GCP_PROJECT_ID: "{{ gcp_worker_08_project_id }}"
+        NODE_TAGS: "{{ inventory_hostname }}"
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
+        - "'worker-05' <= inventory_hostname and inventory_hostname <= 'worker-08'"
+
+    - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[09-12].
+      template:
+        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        dest: /etc/kubernetes/google-compute-engine.conf
+        force: no # Do not override when file exists.
+      vars:
+        GCP_PROJECT_ID: "{{ gcp_worker_12_project_id }}"
+        NODE_TAGS: "{{ inventory_hostname }}"
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
+        - "'worker-09' <= inventory_hostname and inventory_hostname <= 'worker-12'"
+
+    - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[13-24].
+      template:
+        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        dest: /etc/kubernetes/google-compute-engine.conf
+        force: no # Do not override when file exists.
+      vars:
+        GCP_PROJECT_ID: "{{ gcp_project_id }}"
+        NODE_TAGS: "{{ inventory_hostname }}"
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
+        - "'worker-13' <= inventory_hostname and inventory_hostname <= 'worker-24'"
+
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Ansible] - Get discovery Certificate Authority (CA) Token Hash.
+    # @see {@link https://github.com/kubernetes/kubeadm/issues/659#issuecomment-396070894}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Get Kubernetes Token and Token-Hash.
+      block:
+        - name: Register Kubernetes join Command.
+          shell: kubeadm token create --print-join-command
+          register: kubernetes_join_command
+          delegate_to: master-01
+          run_once: yes
+
+        - name: Filter Kubernetes Token using RegExp.
+          set_fact:
+            token: "{{ kubernetes_join_command.stdout | regex_search(regexp, '\\2') | first }}"
+          vars:
+            regexp: '([^\s]+\s){4}([^\s]+)'
+          delegate_to: master-01
+          run_once: yes
+
+        - name: Filter Kubernetes Token Hash using RegExp.
+          set_fact:
+            token_hash: "{{ kubernetes_join_command.stdout | regex_search(regexp, '\\2') | first }}"
+          vars:
+            regexp: '([^\s]+\s){6}([^\s]+)'
+          delegate_to: master-01
+          run_once: yes
+
+        - name: Debug Logging all Registered Variables.
+          debug:
+            msg: "{{ item.key }}: {{ item.value }}"
+          delegate_to: master-01
+          run_once: yes
+          loop:
+            - { key: token, value: "{{ token }}" }
+            - { key: token_hash, value: "{{ token_hash }}" }
+
+      delegate_to: master-01
+      run_once: yes
+
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Resolve Error [ERROR CRI]: Container Runtime is not Running. Apply to all Cluster Nodes.
+    # @description: Apply these [COMMAND] after deploying & linking Kubernetes Cluster.
+    # @see {@link https://github.com/containerd/containerd/issues/4581}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Bootstrap Worker Nodes within Kubernetes Cluster.
+      block:
+        - name: Join Worker Nodes within Kubernetes Cluster.
+          shell: >
+            kubeadm join {{ control_plane_endpoint }}
+            --token {{ token }}
+            --discovery-token-ca-cert-hash {{ token_hash }}
+
+        - name: Remove Container Daemon Default Configuration.
+          file:
+            path: /etc/containerd/config.toml
+            state: absent
+
+        - name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
+          systemd:
+            name: containerd
+            state: restarted
+            daemon_reload: yes
+
+        - name: Restart Kubelet Service via Systemctl.
+          service:
+            name: kubelet
+            daemon-reload: yes
+            state: restarted
+
+      when: "'worker' in inventory_hostname"
+
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: [Add / Remove] Roles to Cluster Nodes.
+    # @see {@link https://stackoverflow.com/questions/48854905/how-to-add-roles-to-nodes-in-kubernetes}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Set Role Labels for [Worker] Nodes
+      shell: >
+        kubectl label --overwrite node {{ item }}.e8s.io node-role.kubernetes.io/worker=""
+      loop: "{{ groups.workers }}"
+      delegate_to: master-01
+      ignore_errors: True
+      run_once: yes

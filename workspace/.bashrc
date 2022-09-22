@@ -10,8 +10,11 @@ export ERR_CRITICAL=102
 
 export SPLIT_LINE="------------------------------------------------------------------------------------------------------------------------------------------------------";
 
-# @see {@link https://k21academy.com/docker-kubernetes/the-connection-to-the-server-localhost8080-was-refused}
+# @see {@link https://k21academy.com/docker-kubernetes/the-connection-to-the-server-localhost8080-was-refused}.
 export KUBECONFIG=/etc/kubernetes/admin.conf;
+
+# @see {@link https://stackoverflow.com/questions/15050443/how-to-add-usr-local-bin-to-path-environment-variable-on-ubuntu-12-0-4#15050454}.
+export PATH=$PATH:/usr/local/bin;
 
 # Keep $ROOT Alias Command.
 alias copy="cp";
@@ -22,6 +25,10 @@ alias move="mv";
 alias cp="cp -i";
 alias rm="rm -i";
 alias mv="mv -i";
+
+# Set `.vimrc` Environment Variable.
+export VIMINIT="source $VIMRC" ;
+export VIMRC="/etc/vimrc" ;
 
 # [COMMAND] > vim [FILES]
 alias vim='__Execute_Text_Editor__() {

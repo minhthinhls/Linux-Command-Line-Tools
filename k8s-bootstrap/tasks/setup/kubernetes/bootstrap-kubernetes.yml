@@ -80,6 +80,19 @@
     - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
     - "'worker-09' <= inventory_hostname and inventory_hostname <= 'worker-12'"
 
+- name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[13-24].
+  template:
+    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    dest: /etc/kubernetes/google-compute-engine.conf
+    force: no # Do not override when file exists.
+  vars:
+    GCP_PROJECT_ID: "{{ gcp_project_id }}"
+    NODE_TAGS: "{{ inventory_hostname }}"
+  when:
+    - "ansible_facts['distribution'] == 'CentOS'"
+    - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
+    - "'worker-13' <= inventory_hostname and inventory_hostname <= 'worker-24'"
+
 - name: Add Kubernetes Admin Configuration into Initial Master Node.
   template:
     src: "{{ inventory_dir }}/resources/kubernetes/kubeadm-config.yaml"

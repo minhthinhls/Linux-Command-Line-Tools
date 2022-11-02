@@ -1,0 +1,13 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Jenkins Worker Nodes Configurations.
+# @see {@link https://www.jenkins.io/doc/book/security/controller-isolation/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @target {@link https://jenkins.e8s.io/computer/(built-in)/configure}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @note: Must ensure restriction for CI/CD Builds on Jenkins Pod.
+# @details: Prevent CI/CD Builds on Jenkins Spawned Pod within Kubernetes Cluster.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> Jenkins Controller -> [Built-In Node]
+  + Executors: 0 (tasks).
+  + Labels: [default-node]
+  + Description: The Maximum number of Concurrent Builds that Jenkins may Schedule on this node.

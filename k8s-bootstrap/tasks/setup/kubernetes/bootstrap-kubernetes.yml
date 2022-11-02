@@ -22,6 +22,28 @@
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
+# @see {@link https://www.middlewareinventory.com/blog/ansible-get-ip-address/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Edit `kubeadm.conf` for [Master && Worker] Nodes.
+  vars:
+    CLOUD_PROVIDER: "external"
+    NODE_IP: "{{ ansible_eth0.ipv4.address }}"
+  template:
+    src: "{{ inventory_dir }}/templates/kubeadm.conf"
+    dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+- name: Force `systemd` reloading all configurations `(Ansible v2.4+)`
+  systemd:
+    daemon_reload: yes
+
+- name: 'Restart service `kubelet`, in all cases.'
+  service:
+    name: kubelet
+    state: restarted
+    daemon-reload: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
 # @see {@link https://docs.openshift.com/container-platform/3.11/install_config/configuring_gce.html}
 # @see {@link https://medium.com/codex/kubernetes-cluster-on-gce-beyond-kubeadm-4a954935e2c8/}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -31,24 +53,28 @@
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Add Kubernetes Cloud Configuration into Initial Master Nodes.
   template:
-    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
     dest: /etc/kubernetes/google-compute-engine.conf
-    force: no # Do not override when file exists.
+    force: yes # Override when file exists. Actually `kubeadm-reset.yml` already deleted the folder `/etc/kubernetes` before bootstrap happened.
   vars:
     GCP_PROJECT_ID: "{{ gcp_master_04_project_id }}"
-    NODE_TAGS: "{{ inventory_hostname }}"
+    NODE_HOSTNAME: "{{ inventory_hostname }}"
+    NODE_PREFIX: "master"
+    NODE_TAGS: "masters"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
     - "'master' in ansible_hostname or 'master' in inventory_hostname"
 
 - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[01-04].
   template:
-    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
     dest: /etc/kubernetes/google-compute-engine.conf
-    force: no # Do not override when file exists.
+    force: yes # Override when file exists. Actually `kubeadm-reset.yml` already deleted the folder `/etc/kubernetes` before bootstrap happened.
   vars:
     GCP_PROJECT_ID: "{{ gcp_worker_04_project_id }}"
-    NODE_TAGS: "{{ inventory_hostname }}"
+    NODE_HOSTNAME: "{{ inventory_hostname }}"
+    NODE_PREFIX: "worker"
+    NODE_TAGS: "workers"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
     - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
@@ -56,12 +82,14 @@
 
 - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[05-08].
   template:
-    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
     dest: /etc/kubernetes/google-compute-engine.conf
-    force: no # Do not override when file exists.
+    force: yes # Override when file exists. Actually `kubeadm-reset.yml` already deleted the folder `/etc/kubernetes` before bootstrap happened.
   vars:
     GCP_PROJECT_ID: "{{ gcp_worker_08_project_id }}"
-    NODE_TAGS: "{{ inventory_hostname }}"
+    NODE_HOSTNAME: "{{ inventory_hostname }}"
+    NODE_PREFIX: "worker"
+    NODE_TAGS: "workers"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
     - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
@@ -69,12 +97,14 @@
 
 - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[09-12].
   template:
-    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
     dest: /etc/kubernetes/google-compute-engine.conf
-    force: no # Do not override when file exists.
+    force: yes # Override when file exists. Actually `kubeadm-reset.yml` already deleted the folder `/etc/kubernetes` before bootstrap happened.
   vars:
     GCP_PROJECT_ID: "{{ gcp_worker_12_project_id }}"
-    NODE_TAGS: "{{ inventory_hostname }}"
+    NODE_HOSTNAME: "{{ inventory_hostname }}"
+    NODE_PREFIX: "worker"
+    NODE_TAGS: "workers"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
     - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
@@ -82,12 +112,14 @@
 
 - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[13-24].
   template:
-    src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+    src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
     dest: /etc/kubernetes/google-compute-engine.conf
-    force: no # Do not override when file exists.
+    force: yes # Override when file exists. Actually `kubeadm-reset.yml` already deleted the folder `/etc/kubernetes` before bootstrap happened.
   vars:
     GCP_PROJECT_ID: "{{ gcp_project_id }}"
-    NODE_TAGS: "{{ inventory_hostname }}"
+    NODE_HOSTNAME: "{{ inventory_hostname }}"
+    NODE_PREFIX: "worker"
+    NODE_TAGS: "workers"
   when:
     - "ansible_facts['distribution'] == 'CentOS'"
     - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
@@ -95,7 +127,7 @@
 
 - name: Add Kubernetes Admin Configuration into Initial Master Node.
   template:
-    src: "{{ inventory_dir }}/resources/kubernetes/kubeadm-config.yaml"
+    src: "{{ inventory_dir }}/templates/kubeadm-config.yaml"
     dest: /etc/kubernetes/pki/kubeadm-config.yaml
   vars:
     CONTROL_PLANE_ENDPOINT: "{{ control_plane_endpoint }}"
@@ -207,6 +239,12 @@
   pause:
     seconds: 2
 
+- name: Print Join Command for Master Nodes within Kubernetes Cluster.
+  debug:
+    msg: "kubeadm join {{ control_plane_endpoint }} --control-plane --token {{ token }} --discovery-token-ca-cert-hash {{ token_hash }} --certificate-key {{ kubernetes_certificate_key.stdout_lines[2] }}"
+  delegate_to: master-01
+  run_once: yes
+
 - name: Bootstrap Master Nodes within Kubernetes Cluster.
   block:
     - name: Join Master Nodes within Kubernetes Cluster.
@@ -227,6 +265,9 @@
 
   when: "'master' in inventory_hostname and inventory_hostname != 'master-01'"
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @deprecated: [Add / Join] Workers to Kubernetes Cluster Nodes Simultaneously (Parallelism).
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Bootstrap Worker Nodes within Kubernetes Cluster.
   block:
     - name: Join Worker Nodes within Kubernetes Cluster.
@@ -244,24 +285,86 @@
   when: "'worker' in inventory_hostname"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @description: [Add / Remove] Roles to Cluster Nodes.
-# @see {@link https://stackoverflow.com/questions/48854905/how-to-add-roles-to-nodes-in-kubernetes}
+# @deprecated: [Add / Join] Workers to Kubernetes Cluster Nodes Sequentially (Concurrency).
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-- name: Set Role Labels for [Master / Control-Plane] Nodes
+- name: Join Worker Nodes within Kubernetes Cluster.
+  shell: >
+    kubeadm join {{ control_plane_endpoint }}
+    --token {{ token }}
+    --discovery-token-ca-cert-hash {{ token_hash }}
+  run_once: yes
+  delegate_to: "{{ item }}"
+  loop: "{{ groups.workers }}"
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Add / Remove] Roles to Cluster Nodes.
+# @see {@link https://stackoverflow.com/questions/48854905/how-to-add-roles-to-nodes-in-kubernetes}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Ansible Tasks with [Retry] on every Iteration until [SUCCESS].
+# @see {@link https://github.com/ansible/ansible/issues/44741#issuecomment-416632200}.
+# @see {@link https://stackoverflow.com/questions/70668326/ansible-async-status-task-error-ansible-job-id-undefined-variable}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Set Role Labels for [Master / Control-Plane] Nodes.
   shell: >
     kubectl label --overwrite node {{ item }}.e8s.io node-role.kubernetes.io/master=""
   loop: "{{ groups.masters }}"
+  loop_control:
+    pause: 0 # Sleep Timeout between each Iteration.
   delegate_to: master-01
   ignore_errors: True
   run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.
 
-- name: Set Role Labels for [Worker] Nodes
+- name: Set Role Labels for [Worker] Nodes.
   shell: >
     kubectl label --overwrite node {{ item }}.e8s.io node-role.kubernetes.io/worker=""
   loop: "{{ groups.workers }}"
+  loop_control:
+    pause: 0 # Sleep Timeout between each Iteration.
   delegate_to: master-01
   ignore_errors: True
   run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Remove] Taints from [Masters / Workers] Cluster Nodes.
+# @description: Specifying [--cloud-provider=external] flag on Kubelet will mark [`${node.cloudprovider.kubernetes.io/uninitialized=NoSchedule}`].
+# @see {@link https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Ansible Tasks with [Retry] on every Iteration until [SUCCESS].
+# @see {@link https://github.com/ansible/ansible/issues/44741#issuecomment-416632200}.
+# @see {@link https://stackoverflow.com/questions/70668326/ansible-async-status-task-error-ansible-job-id-undefined-variable}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove Taints [Uninitialized::NoSchedule] for [Master / Control-Plane] Nodes.
+  shell: >
+    kubectl taint node {{ item }}.e8s.io node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule-
+  loop: "{{ groups.masters }}"
+  loop_control:
+    pause: 0 # Sleep Timeout between each Iteration.
+  delegate_to: master-01
+  ignore_errors: True
+  run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.
+
+- name: Remove Taints [Uninitialized::NoSchedule] for [Worker] Nodes.
+  shell: >
+    kubectl taint node {{ item }}.e8s.io node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule-
+  loop: "{{ groups.workers }}"
+  loop_control:
+    pause: 0 # Sleep Timeout between each Iteration.
+  delegate_to: master-01
+  ignore_errors: True
+  run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @see {@link https://serverfault.com/questions/691080/how-to-fetch-multiple-files-from-remote-machine-to-local-with-ansible/}
@@ -353,15 +456,34 @@
   shell: kubens kube-system
   run_once: yes
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - `systemctl daemon-reload` must be executed so that Workers can be visible to Masters.
+# @see {@link https://github.com/kubernetes/kubernetes/issues/61224#issuecomment-397404671}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Restart Service Containerd on CentOS. In all cases, also issue daemon-reload to pick-up Config changes.
   systemd:
     name: containerd
     state: restarted
     daemon_reload: yes
-  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
+# @see {@link https://www.middlewareinventory.com/blog/ansible-get-ip-address/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Edit `kubeadm.conf` for [Master && Worker] Nodes.
+  vars:
+    CLOUD_PROVIDER: "gce"
+    NODE_IP: "{{ ansible_eth0.ipv4.address }}"
+  template:
+    src: "{{ inventory_dir }}/templates/kubeadm.conf"
+    dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+- name: Force `systemd` reloading all configurations `(Ansible v2.4+)`
+  systemd:
+    daemon_reload: yes
 
 - name: 'Restart service `kubelet`, in all cases.'
   service:
     name: kubelet
     state: restarted
-  when: False # Currently Disable.
+    daemon-reload: yes

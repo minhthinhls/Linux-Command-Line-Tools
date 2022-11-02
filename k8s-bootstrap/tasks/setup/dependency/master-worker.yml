@@ -82,7 +82,7 @@
     state: latest
     update_cache: true
   loop:
-    - "{{ functional_packages + core_packages }}"
+    - "{{ functional_packages + core_packages + utils_packages }}"
   async: 3600 # Maximum allowed time (seconds).
   poll: 2 # Polling Interval (seconds).
 
@@ -118,30 +118,36 @@
     src: "../templates/repository/kubernetes.conf"
     dest: /etc/yum.repos.d/kubernetes.repo
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Install Kubernetes Repository to the Centos 8 Stream by running the following commands.
+# @see {@link https://docs.ansible.com/ansible/latest/collections/ansible/builtin/yum_module.html}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: 'Install [`kubelet`, `kubeadm`, `kubectl`] packages for Master Nodes.'
   vars:
-    K8S_VERSION: 1.24.4-00.x86_64
+    K8S_VERSION: 1.24.6-00.x86_64
   yum:
     name:
       - kubelet-{{ K8S_VERSION }}
       - kubeadm-{{ K8S_VERSION }}
       - kubectl-{{ K8S_VERSION }}
     disable_excludes: kubernetes
-    # @arguments [present, latest, absent]
-    state: latest
+    allow_downgrade: true
+    # @arguments: {["absent", "removed"], ["present", "installed"], "latest"}
+    state: present
     update_cache: true
   when: "'master' in inventory_hostname"
 
 - name: 'Install [`kubelet`, `kubeadm`, `kubectl`] packages for Worker Nodes.'
   vars:
-    K8S_VERSION: 1.24.4-00.x86_64
+    K8S_VERSION: 1.24.6-00.x86_64
   yum:
     name:
       - kubelet-{{ K8S_VERSION }}
       - kubeadm-{{ K8S_VERSION }} # Package `kubeadm` will automatically pull `kubectl` as Dependency Package.
       - kubectl-{{ K8S_VERSION }} # Will be automatically installed via Google Cloud SDK.
     disable_excludes: kubernetes
-    # @arguments [present, latest, absent]
-    state: latest
+    allow_downgrade: true
+    # @arguments: {["absent", "removed"], ["present", "installed"], "latest"}
+    state: present
     update_cache: true
   when: "'worker' in inventory_hostname"

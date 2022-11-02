@@ -53,7 +53,7 @@
     state: latest
     update_cache: true
   loop:
-    - "{{ functional_packages + core_packages }}"
+    - "{{ functional_packages + core_packages + utils_packages }}"
   async: 3600 # Maximum allowed time (seconds).
   poll: 2 # Polling Interval (seconds).
   when: False # Currently Disable.
@@ -67,9 +67,21 @@
     src: "../templates/repository/nginx.conf"
     dest: /etc/yum.repos.d/nginx.repo
 
-- name: 'Install [`NGINX`] packages for Load-Balancer Nodes.'
+- name: 'Install [`NGINX`] Package for Load-Balancer Proxy Nodes.'
   yum:
     name: nginx
+    # @arguments [present, latest, absent]
+    state: latest
+    update_cache: true
+  when: "'load-balancer' in inventory_hostname"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Install HAProxy into Centos 8 Stream by running the following commands.
+# @see {@link https://tecmint.com/setup-nginx-haproxy-load-balancer-in-centos-8/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: 'Install [`HAProxy`] Package for Load-Balancer Proxy Nodes.'
+  yum:
+    name: haproxy
     # @arguments [present, latest, absent]
     state: latest
     update_cache: true

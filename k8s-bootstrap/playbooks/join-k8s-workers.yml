@@ -46,7 +46,7 @@
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     - name: Add Kubernetes Cloud Configuration into Initial Master Nodes.
       template:
-        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
         dest: /etc/kubernetes/google-compute-engine.conf
         force: no # Do not override when file exists.
       vars:
@@ -58,7 +58,7 @@
 
     - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[01-04].
       template:
-        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
         dest: /etc/kubernetes/google-compute-engine.conf
         force: no # Do not override when file exists.
       vars:
@@ -71,7 +71,7 @@
 
     - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[05-08].
       template:
-        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
         dest: /etc/kubernetes/google-compute-engine.conf
         force: no # Do not override when file exists.
       vars:
@@ -84,7 +84,7 @@
 
     - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[09-12].
       template:
-        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
         dest: /etc/kubernetes/google-compute-engine.conf
         force: no # Do not override when file exists.
       vars:
@@ -97,7 +97,7 @@
 
     - name: Add Kubernetes Cloud Configuration into Initial Worker Group Nodes::[13-24].
       template:
-        src: "{{ inventory_dir }}/resources/kubernetes/google-compute-engine.conf"
+        src: "{{ inventory_dir }}/templates/google-compute-engine.conf"
         dest: /etc/kubernetes/google-compute-engine.conf
         force: no # Do not override when file exists.
       vars:
@@ -107,6 +107,10 @@
         - "ansible_facts['distribution'] == 'CentOS'"
         - "'worker' in ansible_hostname or 'worker' in inventory_hostname"
         - "'worker-13' <= inventory_hostname and inventory_hostname <= 'worker-24'"
+
+    - name: Remove Worker Nodes at the sametime via [Concurrency / Parallel] Strategy.
+      shell: kubeadm reset --force
+      when: "'worker' in inventory_hostname"
 
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     # @description: [Ansible] - Get discovery Certificate Authority (CA) Token Hash.

@@ -12,7 +12,6 @@ variable "projects" {
         "worker-01" : "../worker-01/service-account.json",
         "worker-02" : "../worker-02/service-account.json",
         "worker-03" : "../worker-03/service-account.json",
-        "worker-04" : "../worker-04/service-account.json",
     }
 }
 

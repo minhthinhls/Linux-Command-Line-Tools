@@ -32,10 +32,18 @@
     - "{{ inventory_dir }}/resources/kubernetes/longhorn-storage-class.yaml"
     - "{{ inventory_dir }}/resources/kubernetes/cert-manager-v1.8.1.yaml"
   run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.
 
-- name: Pause 30 seconds to make sure Certificate Manager Webhook got deployed.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Bootstrap Kubernetes Cluster Certificate Issuer (Lets_Encrypt) for all [Master, Workers] Node.
+# @see {@link https://docs.ansible.com/ansible/latest/user_guide/playbooks_blocks.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Pause 60 seconds to make sure Certificate Manager Webhook got deployed.
   pause:
-    seconds: 30
+    seconds: 60
+  when: False # Currently disable this Ansible Tasks.
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Bootstrap Kubernetes Cluster Certificate Issuer (Lets_Encrypt) for all [Master, Workers] Node.
@@ -48,6 +56,9 @@
   loop:
     - "{{ inventory_dir }}/resources/kubernetes/cert-issuer.yaml"
   run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Bootstrap Kubernetes Cluster Argo Continuous Deployment for all [Master, Workers] Node.
@@ -60,3 +71,6 @@
   loop:
     - "{{ inventory_dir }}/resources/kubernetes/argocd-stable.yaml"
   run_once: yes
+  register: micro_tasks
+  until: micro_tasks is succeeded
+  retries: 3 # Each Iteration will [RETRY_MAX=3] times.

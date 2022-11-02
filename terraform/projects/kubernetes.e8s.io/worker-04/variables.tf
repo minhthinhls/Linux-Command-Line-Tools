@@ -15,8 +15,8 @@ variable "snapshot_worker_instances" {
 variable "worker_instances" {
     default = {
         reserved_external_ips = 0
-        reserved_boot_disks = 12 # 12
+        reserved_boot_disks = 4 # 4
         offset_instances = 12 # 12
-        number_instances = 12 # 12
+        number_instances = 4 # 4
     }
 }

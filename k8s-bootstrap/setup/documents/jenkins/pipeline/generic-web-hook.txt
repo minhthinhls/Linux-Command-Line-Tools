@@ -1,0 +1,30 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Gitlab Generic Webhook.
+# @target {@link https://gitlab.com/huynhleminhthinh/rest-api/-/hooks}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> URL: [http://jenkins.e8s.io/generic-webhook-trigger/invoke?token=dXNlcm5hbWU=]
+> Trigger:
+  + Push Events:
+    (X) Wildcard Pattern
+  + Tag Push Events
+  + Merge Request Events
+
+> SSL Verification
+  + (X) Enable SSL Verification
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Jenkins Global Credentials (Un-restricted).
+# @target {@link https://jenkins.e8s.io/job/multi-branch-pipeline/job/rest-api/configure}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> General:
+  + GitLab Connection: <GITLAB_PUSH_EVENT>
+
+> Build Triggers -> [Generic Webhook Trigger]
+  + Token: [dXNlcm5hbWU=]
+
+> Pipeline: Pipeline from Source Code Management (SCM).
+  + SCM: [Git]
+  + Repository: [https://gitlab.com/huynhleminhthinh/rest-api]
+  + Specified Branch: [*/v2-*]
+  + Script Path: [Jenkinsfile]
+  + Lightweight Checkout: [None]

@@ -38,3 +38,7 @@ functional_packages:
 core_packages:
   - python3
   - python3-pip
+
+utils_packages:
+  - diffcolor
+  - etckeeper

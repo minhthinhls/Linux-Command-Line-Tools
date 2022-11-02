@@ -27,8 +27,8 @@ alias rm="rm -i";
 alias mv="mv -i";
 
 # Set `.vimrc` Environment Variable.
-export VIMINIT="source $VIMRC" ;
 export VIMRC="/etc/vimrc" ;
+export VIMINIT="source $VIMRC" ;
 
 # [COMMAND] > vim [FILES]
 alias vim='__Execute_Text_Editor__() {
@@ -37,7 +37,12 @@ alias vim='__Execute_Text_Editor__() {
     return 1;
   fi
   echo ">>> DEBUG -- [ARGUMENTS: $@]";
-  vi -S ~/.vimrc "$@";
+  if [ -f ~/.vimrc ];
+    then
+      vi -S ~/.vimrc "$@";
+    else
+      vi -S "$VIMRC" "$@";
+  fi
   unset -f __Execute_Text_Editor__;
   return 1;
 }; __Execute_Text_Editor__';

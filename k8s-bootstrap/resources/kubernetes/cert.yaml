@@ -4,6 +4,7 @@ kind: Certificate
 metadata:
   name: wildcard-argocd
   # @describe: `kubectl describe certificate --namespace argocd-system`.
+  # @describe: `kubectl get challenges --namespace argocd-system`.
   # @describe: `kubectl get secrets --namespace argocd-system`.
   namespace: argocd-system
   labels:
@@ -24,6 +25,7 @@ kind: Certificate
 metadata:
   name: wildcard-jenkins
   # @describe: `kubectl describe certificate --namespace jenkins-system`.
+  # @describe: `kubectl get challenges --namespace jenkins-system`.
   # @describe: `kubectl get secrets --namespace jenkins-system`.
   namespace: jenkins-system
   labels:
@@ -44,6 +46,7 @@ kind: Certificate
 metadata:
   name: wildcard-portainer
   # @describe: `kubectl describe certificate --namespace portainer-system`.
+  # @describe: `kubectl get challenges --namespace portainer-system`.
   # @describe: `kubectl get secrets --namespace portainer-system`.
   namespace: portainer-system
   labels:
@@ -64,6 +67,7 @@ kind: Certificate
 metadata:
   name: wildcard-mongodb
   # @describe: `kubectl describe certificate --namespace mongodb-staging`.
+  # @describe: `kubectl get challenges --namespace mongodb-staging`.
   # @describe: `kubectl get secrets --namespace mongodb-staging`.
   namespace: mongodb-staging
   labels:

@@ -34,29 +34,12 @@
   with_lines:
     - getsebool -a | grep httpd_can_network;
 
-- name: Start & Enable NGINX Service.
-  systemd:
-    name: nginx
-    state: started
-    enabled: yes
-    daemon_reload: yes
-
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @see {@link https://www.middlewareinventory.com/blog/ansible-copy-file-or-directory-local-to-remote/}
+# @description: Bootstrap Configure for [Load-Balancer] Nodes.
+# @see {@link https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-- name: Paste NGINX Configuration into Load-Balancer Machines.
-  copy:
-    src: "{{ inventory_dir }}/etc/nginx/"
-    dest: /etc/nginx/
-    owner: root
-    # group: admin
-    mode: 0644
-
-- name: Restart NGINX Service.
-  systemd:
-    name: nginx
-    state: restarted
-    daemon_reload: yes
+- name: Setup Load-Balancer within Kubernetes Cluster Machines.
+  include: "{{ inventory_dir }}/tasks/setup/module/haproxy.yml"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Google Cloud by default will set [zone=trusted] instead of [zone=public] when Interface `eth0` belongs to Internal Network.

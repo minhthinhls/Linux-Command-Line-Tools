@@ -1,0 +1,26 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Jenkins Cloud Configurations.
+# @see {@link https://devopscube.com/jenkins-build-agents-kubernetes/}.
+# @see {@link https://github.com/marcel-dempers/docker-development-youtube-series/blob/master/jenkins/readme.md}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @target {@link https://jenkins.e8s.io/configureClouds/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @note: Must ensure installed [Kubernetes] Plugin.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> Name: kubernetes
+> Namespace: jenkins-system
+> Jenkins URL: http://jenkins.jenkins-system.svc.cluster.local:8080
+> Pod Labels:
+  + Key: jenkins
+  + Value: agent
+
+> Pod Templates:
+  + Name: jenkins-agent
+  + Namespace: jenkins-system
+  + Labels: jenkins-agent # [Step 6: Matching Labels Expression]
+  > Container Templates:
+    + Name: jnlp
+    + Docker Image: jenkins/inbound-agent:4.3-4
+    + Working Directory: /home/jenkins/agent
+    + Command to Run: <empty>
+    + Command Arguments: <empty>

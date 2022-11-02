@@ -1,0 +1,28 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ load_balancers ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+  vars_files: "{{ inventory_dir }}/vars/node-env.yml"
+
+  tasks:
+    # @see {@link https://docs.ansible.com/ansible/2.3/include_vars_module.html}
+    - name: Add the OS specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ inventory_dir }}/vars/RHEL-8.yml"
+
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Bootstrap Configure for [Load-Balancer] Nodes.
+    # @see {@link https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html}
+    # ----------------------------------------------------------------------------------------------------------------------------------------------------
+    - name: Setup Load-Balancer within Kubernetes Cluster Machines.
+      include: "{{ inventory_dir }}/tasks/setup/module/haproxy.yml"

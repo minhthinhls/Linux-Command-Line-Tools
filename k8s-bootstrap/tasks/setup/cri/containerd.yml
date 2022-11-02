@@ -5,8 +5,12 @@
     dest: /etc/yum.repos.d/docer-ce.repo
 
 - name: Install Containerd.
+  vars:
+    PKG_VERSION: 1.6.8-3.1.el8.x86_64
   yum:
-    name: containerd.io
+    name: containerd.io-{{ PKG_VERSION }}
+    allow_downgrade: true
+    # @arguments: {["absent", "removed"], ["present", "installed"], "latest"}
     state: present
     update_cache: yes
 

@@ -7,9 +7,29 @@ must have the corresponding configured `node_ip`.
 Thus, Ansible Kubernetes Runtime (Step-2) must be re-run to apply
 the following configuration before bootstrap Kubernetes Cluster.
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: CustomResourceDefinition.ApiExtensions.k8s.io "prometheus.monitoring.coreos.com" is invalid: metadata.annotations: Too long: must have at most 262144 bytes.
+# @see {@link https://github.com/prometheus-community/helm-charts/issues/1500#issuecomment-968619283}.
+# @resolve {@link https://medium.com/pareture/kubectl-install-crd-failed-annotations-too-long-2ebc91b40c7d}.
+# @resolve {@link https://github.com/prometheus-operator/prometheus-operator/issues/4355#issuecomment-955881550}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> kubectl create --filename /root/Linux-Command-Line-Tools/k8s-bootstrap/resources/kubernetes/prometheus/manifests/setup/ ;
+> kubectl create --filename /root/Linux-Command-Line-Tools/k8s-bootstrap/resources/kubernetes/prometheus/manifests/setup/0prometheusCustomResourceDefinition.yaml ;
+> kubectl apply --filename /root/Linux-Command-Line-Tools/k8s-bootstrap/resources/kubernetes/prometheus/manifests/ ;
+
 ---
 @description: Get ArgoCD Default Admin Password within Kubernetes Secret.
 > echo $(kubectl --namespace argocd-system get secret argocd-initial-admin-secret --output jsonpath="{.data.password}" | base64 --decode);
+> export ADMIN_PASSWORD="$(kubectl --namespace argocd-system get secret argocd-initial-admin-secret --output jsonpath="{.data.password}" | base64 --decode)";
+
+---
+@description: Change [Default] Admin Password within Kubernetes [ArgoCD] Server.
+> kubectl apply --filename /root/Linux-Command-Line-Tools/k8s-bootstrap/resources/kubernetes/argocd-config.yaml ;
+> kubectl apply --filename /root/Linux-Command-Line-Tools/k8s-bootstrap/resources/kubernetes/rest-api/ ;
+> kubens argocd-system ; k8s-exec pod/argocd-server ;
+> argocd login argocd-server.argocd-system.svc.cluster.local --username admin --grpc-web-root-path / ;
+> argocd account update-password --account admin --new-password 12345678 --current-password <ADMIN_PASSWORD> ;
+> argocd account update-password --account guest --new-password 12345678 --current-password <ADMIN_PASSWORD> ;
 
 ---
 @description: Create ArgoCD Guest User and Apply Guest Password via Kubernetes ArgoCD ConfigMap.

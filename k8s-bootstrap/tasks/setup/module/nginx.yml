@@ -1,0 +1,26 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://www.middlewareinventory.com/blog/ansible-copy-file-or-directory-local-to-remote/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Paste NGINX Configuration into Load-Balancer Machines.
+  copy:
+    src: "{{ inventory_dir }}/etc/nginx/"
+    dest: /etc/nginx/
+    owner: root
+    # group: admin
+    mode: 0644
+
+- name: Start & Enable NGINX Service.
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Restart NGINX Service.
+  systemd:
+    name: nginx
+    state: restarted
+    daemon_reload: yes

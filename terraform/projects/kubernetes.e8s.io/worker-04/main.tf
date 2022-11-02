@@ -36,7 +36,7 @@ module "snapshot-workers" {
     secrets = module.secrets
     subnet_range = "172.16.5.0/24"
     disk_options = {
-        size = 100, # Gigabytes
+        size = 20, # Gigabytes - [Requested disk size cannot be smaller than the snapshot size (250 GB)].
         type = "pd-ssd", # ["pd-standard", "pd-balanced", "pd-ssd"]
         # @description: Cannot specify both source image and source snapshot.
         image = "centos-cloud/centos-stream-8" # ["debian-cloud/debian-9"]
@@ -59,10 +59,10 @@ module "workers" {
     secrets = module.secrets
     subnet_range = "172.16.5.0/24"
     gce_options = {
-        machine_type = "e2-standard-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]]
+        machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
     }
     disk_options = {
-        size = 100, # Gigabytes
+        size = 420, # Gigabytes - [Requested disk size cannot be smaller than the snapshot size (20 GB)].
         type = "pd-standard", # ["pd-standard", "pd-balanced", "pd-ssd"]
         # @description: Cannot specify both source image and source snapshot.
         image = null # ["centos-cloud/centos-stream-8", "debian-cloud/debian-9"]

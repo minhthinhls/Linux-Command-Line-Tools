@@ -1,0 +1,42 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Gitlab Generic Webhook.
+# @target {@link https://gitlab.com/huynhleminhthinh/rest-api/-/hooks}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> URL: [http://jenkins.e8s.io/generic-webhook-trigger/invoke?token=dXNlcm5hbWU=]
+> Trigger:
+  + Push Events:
+    (X) Wildcard Pattern
+  + Tag Push Events
+  + Merge Request Events
+
+> SSL Verification
+  + (X) Enable SSL Verification
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Jenkins Global Credentials (Un-restricted).
+# @target {@link https://jenkins.e8s.io/job/multi-branch-pipeline/job/rest-api/configure}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> General:
+  + GitLab Connection: <GITLAB_PUSH_EVENT>
+
+> Build Triggers -> [Build when changes are pushed to GitLab. GitLab Web-hook URL: <GITLAB_ENDPOINT>]
+  + Options: [
+    [X] 'Push Events',
+    [X] 'Accepted Merge Request Events',
+    [IGNORE] 'Approved Merge Requests (EE-only)',
+    [IGNORE] 'Comments',
+    [IGNORE] 'Comment (regex) for triggering builds',
+    [X] 'Enable [ci-skip]',
+    [X] 'Ignore WIP Merge Requests',
+    [X] 'Set build description to build cause (Eg. Merge request or Git Push)',
+    [X] 'Filter Branches by Name', # Include::['v2-develop']
+    [X] 'Secret token', # Generate::[`${TOKEN}`]
+  ]
+
+> Pipeline: Pipeline from Source Code Management (SCM).
+  + SCM: [Git]
+  + Repository: [https://gitlab.com/huynhleminhthinh/rest-api.git]
+  + Credentials: <GITLAB_BASIC_AUTHENTICATION>
+  + Specified Branch: ['v2-develop']
+  + Script Path: [Jenkinsfile]
+  + Lightweight Checkout: [None]

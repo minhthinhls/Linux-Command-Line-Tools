@@ -1,0 +1,95 @@
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Kubernetes Cluster Configuration via YAML Structure.
+# @see {@link https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/#:~:text=ClusterConfiguration,-etcd}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  criSocket: "/run/containerd/containerd.sock"
+  kubeletExtraArgs:
+    cloud-provider: "gce"
+    cloud-config: "/etc/kubernetes/google-compute-engine.conf"
+    cgroup-driver: "systemd"
+
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Kubernetes Cluster Configuration via YAML Structure.
+# @see {@link https://kubernetes.io/docs/tasks/administer-cluster/enable-disable-api/}
+# @see {@link https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/}
+# @see {@link https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/control-plane-flags/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provider GCE Cloud Provider for Kubernetes Cluster Configuration.
+# @see {@link https://github.com/kubernetes/kubernetes/issues/66564#issuecomment-496133700}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: stable
+controlPlaneEndpoint: "{{ CONTROL_PLANE_ENDPOINT }}"
+certificatesDir: "/etc/kubernetes/pki"
+apiServer:
+  # Certificate Subject Alternative Names.
+  certSANs:
+    - "localhost"
+    - "127.0.0.1"
+    - "control-plane.e8s.io"
+    - "control-plane.google-cloud.e8s.io"
+    - "control-plane.digital-ocean.e8s.io"
+    - "172.16.1.101"
+    - "master-01.e8s.io"
+    - "master-01.google-cloud.e8s.io"
+    - "master-01.digital-ocean.e8s.io"
+    - "172.16.1.102"
+    - "master-02.e8s.io"
+    - "master-02.google-cloud.e8s.io"
+    - "master-02.digital-ocean.e8s.io"
+    - "172.16.1.103"
+    - "master-03.e8s.io"
+    - "master-03.google-cloud.e8s.io"
+    - "master-03.digital-ocean.e8s.io"
+    - "172.16.1.104"
+    - "master-04.e8s.io"
+    - "master-04.google-cloud.e8s.io"
+    - "master-04.digital-ocean.e8s.io"
+  extraArgs:
+    cloud-provider: "gce"
+    cloud-config: "/etc/kubernetes/google-compute-engine.conf"
+    runtime-config: "storage.k8s.io/v1=true"
+  extraVolumes:
+    - name: cloud
+      hostPath: "/etc/kubernetes/google-compute-engine.conf"
+      mountPath: "/etc/kubernetes/google-compute-engine.conf"
+      pathType: FileOrCreate
+controllerManager:
+  extraArgs:
+    cloud-provider: "gce"
+    cloud-config: "/etc/kubernetes/google-compute-engine.conf"
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Configure Kubernetes Cluster Rancher Configuration via YAML Structure.
+    # @see {@link https://github.com/rancher/rke/issues/1329#issuecomment-490775878}
+    # @see {@link https://github.com/rancher/rancher/issues/18207/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Configure Kubernetes Cluster Cloud Routes Configuration via YAML Structure.
+    # @see {@link https://kubernetes.io/docs/tasks/administer-cluster/running-cloud-controller/#:~:text=configure%2Dcloud%2Droutes}
+    # @see {@link https://stackoverflow.com/questions/56722303/routecontroller-failed-to-create-a-route-on-gke/}
+    # @see {@link https://github.com/kubernetes/cloud-provider-alibaba-cloud/issues/46/}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    configure-cloud-routes: "false"
+  extraVolumes:
+    - name: cloud
+      hostPath: "/etc/kubernetes/google-compute-engine.conf"
+      mountPath: "/etc/kubernetes/google-compute-engine.conf"
+      pathType: FileOrCreate
+networking:
+  serviceSubnet: "10.96.0.0/16"
+  podSubnet: "10.244.0.0/16"
+
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Configure Kubernetes Cluster Kubelet Configuration via YAML Structure.
+# @see {@link https://medium.com/codex/kubernetes-cluster-on-gce-beyond-kubeadm-4a954935e2c8/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+cgroupDriver: systemd
+serverTLSBootstrap: false # Do not set to True when Metrics-Server started with following argument::[--kubelet-insecure-tls=true]

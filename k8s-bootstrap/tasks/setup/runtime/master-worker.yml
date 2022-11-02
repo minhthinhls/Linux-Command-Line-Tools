@@ -130,7 +130,7 @@
 # @see {@link https://docs.oracle.com/en/operating-systems/olcne/1.1/start/ports.html}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Setup Firewall within Kubernetes Cluster Machines.
-  include: "{{ inventory_dir }}/tasks/setup/firewall-daemon.yml"
+  include: "{{ inventory_dir }}/tasks/setup/module/firewall-daemon.yml"
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Resolve Error [ERROR CRI]: Container Runtime is not Running. Apply to all Cluster Nodes.
@@ -164,15 +164,27 @@
     modification_time: now
     access_time: now
 
-- name: 'Enable `kubelet` Service'
-  service:
-    name: kubelet
-    enabled: yes
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Kubelet Configuration Errors - [NODE NOT FOUND] on Worker joins Cluster.
+# @see {@link https://github.com/kubernetes/kubernetes/issues/61224}.
+# @see {@link https://github.com/kubernetes-sigs/kind/issues/2491}.
+# @see {@link https://github.com/kubernetes/kubeadm/issues/574}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Reinstall Kubernetes v1.24.6 to flush all remained configurations.
+  vars:
+    K8S_VERSION: 1.24.6-00.x86_64
+  shell: >
+    yum install --assumeyes
+    kubelet-{{ K8S_VERSION }}
+    kubeadm-{{ K8S_VERSION }}
+    --disableexcludes kubernetes
+  when: True
 
-- name: 'Start service `kubelet`, if not started.'
+- name: 'Start && Enable `kubelet` Service'
   service:
     name: kubelet
     state: started
+    enabled: yes
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Kubelet will not work with enabled swap.
@@ -186,13 +198,17 @@
   blockinfile:
     # path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
     path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-    block: Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false --node-ip={{ inventory_hostname }}"
+    block: Environment="KUBELET_EXTRA_ARGS=--cgroup-driver=systemd --fail-swap-on=false --node-ip={{ inventory_hostname }}"
   when: False # Currently Disable.
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Add Kubernetes Initialize Configuration within Google Cloud Compute Engine.
+# @see {@link https://www.middlewareinventory.com/blog/ansible-get-ip-address/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 - name: Edit `kubeadm.conf` for [Master && Worker] Nodes.
   vars:
-    CLOUD_PROVIDER: "gce"
-    NODE_IP: "{{ inventory_hostname }}"
+    CLOUD_PROVIDER: "external"
+    NODE_IP: "{{ ansible_eth0.ipv4.address }}"
   template:
     src: "{{ inventory_dir }}/templates/kubeadm.conf"
     dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
@@ -205,3 +221,4 @@
   service:
     name: kubelet
     state: restarted
+    daemon-reload: yes

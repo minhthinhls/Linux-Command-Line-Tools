@@ -9,7 +9,7 @@ resource "google_compute_firewall" "ssh-rule" {
         protocol = "tcp"
         ports    = ["22"]
     }
-    target_tags   = ["bastion-machines", "load-balancers", "masters", "workers"]
+    target_tags   = ["bastion-machines", "compute-engines", "load-balancers", "masters", "workers"]
     source_ranges = ["0.0.0.0/0"]
 }
 

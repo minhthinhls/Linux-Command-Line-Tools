@@ -4,14 +4,8 @@
 # @see {@link https://www.terraform.io/language/modules/develop/providers/}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 provider "google" {
-    credentials = file(module.secrets.service_account["file_path"])
-    project = module.secrets.service_account["project_id"]
     region  = var.region
     zone    = var.zone
-}
-
-module "secrets" {
-    source = "../../../modules/google/secrets"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -19,20 +13,12 @@ module "secrets" {
 # @see {@link https://www.terraform.io/language/expressions/for/}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 locals {
-    credentials = {for project, service_account in var.projects : project => file(service_account)}
+    credentials      = {for project, service_account in var.projects : project => file(service_account)}
     service_accounts = {for project, service_account in var.projects : project => jsondecode(file(service_account))}
-    project_ids = {for project, service_account in var.projects : project => jsondecode(file(service_account))["project_id"]}
+    project_ids      = {for project, service_account in var.projects : project => jsondecode(file(service_account))["project_id"]}
 }
 
-# ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @deprecated: Refactor Terraform Provider usage within `VPC-Peering` Module.
-# ----------------------------------------------------------------------------------------------------------------------------------------------------
-provider "google" {
-    alias = "ingress-01"
-    credentials = local.credentials["ingress-01"]
-    project = local.project_ids["ingress-01"]
-}
-
+/* @description: Cannot use [for_each, count, depends_on] when module has its own `provider` emerged within.
 module "vpc-peering" {
     source = "../../../modules/google/vpc-peering/"
     for_each = var.projects # @alternative: flatten([keys(var.projects)])
@@ -40,9 +26,57 @@ module "vpc-peering" {
         credential = local.credentials[each.key]
         project_id = local.project_ids[each.key]
     }
-    current = "https://www.googleapis.com/compute/v1/projects/${local.project_ids[each.key]}/global/networks/global-vpc"
-    others = [
-        for project in setsubtract(toset(values(local.project_ids)), toset([local.project_ids[each.key]]))
-        : "https://www.googleapis.com/compute/v1/projects/${project}/global/networks/global-vpc"
-    ]
+    current = local.project_ids[each.key]
+    others = setsubtract(toset(values(local.project_ids)), toset([local.project_ids[each.key]]))
+}
+*/
+
+module "vpc-peering-ingress-01" {
+    source = "../../../modules/google/vpc-peering/"
+    gcp_provider = {
+        credential = local.credentials["ingress-01"]
+        project_id = local.project_ids["ingress-01"]
+    }
+    current = local.project_ids["ingress-01"]
+    others = setsubtract(toset(values(local.project_ids)), toset([local.project_ids["ingress-01"]]))
+}
+
+module "vpc-peering-master-01" {
+    source = "../../../modules/google/vpc-peering/"
+    gcp_provider = {
+        credential = local.credentials["master-01"]
+        project_id = local.project_ids["master-01"]
+    }
+    current = local.project_ids["master-01"]
+    others = setsubtract(toset(values(local.project_ids)), toset([local.project_ids["master-01"]]))
+}
+
+module "vpc-peering-worker-01" {
+    source = "../../../modules/google/vpc-peering/"
+    gcp_provider = {
+        credential = local.credentials["worker-01"]
+        project_id = local.project_ids["worker-01"]
+    }
+    current = local.project_ids["worker-01"]
+    others = setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-01"]]))
+}
+
+module "vpc-peering-worker-02" {
+    source = "../../../modules/google/vpc-peering/"
+    gcp_provider = {
+        credential = local.credentials["worker-02"]
+        project_id = local.project_ids["worker-02"]
+    }
+    current = local.project_ids["worker-02"]
+    others = setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-02"]]))
+}
+
+module "vpc-peering-worker-03" {
+    source = "../../../modules/google/vpc-peering/"
+    gcp_provider = {
+        credential = local.credentials["worker-03"]
+        project_id = local.project_ids["worker-03"]
+    }
+    current = local.project_ids["worker-03"]
+    others = setsubtract(toset(values(local.project_ids)), toset([local.project_ids["worker-03"]]))
 }

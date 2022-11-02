@@ -41,6 +41,7 @@
 - name: Remove Master Nodes Sequentially. Do not remove Master Nodes at the sametime [Concurrency / Parallel] Strategy.
   shell: kubeadm reset --force
   run_once: yes
+  ignore_errors: True
   delegate_to: "{{ item }}"
   loop: "{{ groups.masters }}"
 

@@ -1,0 +1,12 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Gitlab Webhook for Jenkins Events Publish.
+# @see {@link https://docs.gitlab.com/ee/integration/jenkins.html#configure-the-jenkins-server}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @target {@link https://jenkins.e8s.io/manage/configure}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @note: Must ensure installed [Gitlab]::[https://plugins.jenkins.io/gitlab-plugin/] Plugin.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> Gitlab: (X) Enable authentication for '/project' end-point.
+  + Connection Name: Gitlab Push Events
+  + Gitlab Host URL: [https://gitlab.com/]
+  + Credentials: <GITLAB_API_TOKEN>

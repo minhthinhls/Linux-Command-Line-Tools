@@ -1,0 +1,32 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://www.middlewareinventory.com/blog/ansible-copy-file-or-directory-local-to-remote/}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Paste HAProxy Configuration into Load-Balancer Machines.
+  copy:
+    src: "{{ inventory_dir }}/etc/haproxy/"
+    dest: /etc/haproxy/
+    owner: root
+    # group: admin
+    mode: 0644
+
+- name: "[Compile / Bundle] HAProxy Final Configurations."
+  vars:
+    CONFIG_PATH: /etc/haproxy
+  shell: >
+    cat {{ CONFIG_PATH }}/conf.d/*.conf > {{ CONFIG_PATH }}/haproxy.cfg ;
+
+- name: Start & Enable HAProxy Service.
+  systemd:
+    name: haproxy
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Restart HAProxy Service.
+  systemd:
+    name: haproxy
+    state: restarted
+    daemon_reload: yes

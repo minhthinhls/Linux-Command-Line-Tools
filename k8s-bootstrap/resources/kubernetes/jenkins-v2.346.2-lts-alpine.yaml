@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Jenkins Deployment via Kubernetes Template Engines.
-# @see {@link https://github1s.com/marcel-dempers/docker-development-youtube-series/blob/HEAD/jenkins/jenkins.deployment.yaml}
+# @see {@link https://github1s.com/marcel-dempers/docker-development-youtube-series/blob/HEAD/jenkins/jenkins.deployment.yaml}.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
 apiVersion: v1
@@ -69,8 +69,14 @@ subjects:
     name: jenkins
     namespace: jenkins-system
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply this watcher via the following Commands.
+# @command >> sudo watch kubectl get sc,pv,pvc --output wide --all-namespaces;
+# @command >> sudo kubectl delete --namespace jenkins-system pv/jenkins pvc/jenkins;
+# @see {@link https://stackoverflow.com/questions/34282704/can-a-pvc-be-bound-to-a-specific-pv}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
-# Source: portainer/templates/pvc.yaml
+# Source: jenkins/templates/pvc.yaml
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -84,6 +90,15 @@ metadata:
     app.kubernetes.io/instance: jenkins
     app.kubernetes.io/version: "jenkins-v2.346.2-lts-alpine"
 spec:
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  # @description: In case Maintainer needs to Remount Persistent Volume back into PVC.
+  # @description: Delete Persistent Volume Claims (PVCs) or Modify PVC attributes and [OPEN] the flag `volumeName` below.
+  # @see {@link https://webera.blog/recreate-an-existing-pvc-in-a-new-namespace-but-reusing-the-same-pv-without-data-loss-2c7326c0035a}.
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  # @description: After finishing apply `volumeName`. Delete the ${LAST_APPLIED_CONFIG} @{annotation} and re-apply this PVC Resource.
+  # @command >> kubectl annotate pvc jenkins --namespace jenkins-system kubectl.kubernetes.io/last-applied-configuration-
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  # volumeName: "pvc-********-****-****-****-************"
   accessModes:
     - ReadWriteMany # ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
   storageClassName: longhorn-retain # ["gce-pd", "longhorn-delete", "longhorn-retain"]
@@ -191,26 +206,47 @@ spec:
 #      name: letsencrypt-production
 #      kind: ClusterIssuer
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Deploying multiple Ingress controllers will result in all controllers simultaneously racing to update Ingress status in confusing ways.
+# @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @solution: Declare explicit IngressClasses to fix this problem.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# * Using ${annotation} [kubernetes.io/ingress.class]
+# * Using ${properties} [ingress.spec.ingressClassName]
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: jenkins
   namespace: jenkins-system
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
-  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}.
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
   annotations:
     kubernetes.io/tls-acme: "true"
-    # @deprecated: Deprecated from Kubernetes v1.22+.
-    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
-    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
-    kubernetes.io/ingress.class: nginx
-    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
-    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @deprecated: Deprecated from Kubernetes v1.18+.
+    # @see {@link https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/}.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # kubernetes.io/ingress.class: nginx
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    ingress.kubernetes.io/class-name: nginx
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @deprecated: {@resource: [nginx.ingress.kubernetes.io/add-base-url]} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 spec:
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  # @see {@link https://stackoverflow.com/questions/72932892/class-name-shows-none-for-ingress-object-in-local-kubernetes}.
+  # @see {@link https://kubernetes.io/docs/concepts/services-networking/ingress/#deprecated-annotation}.
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  ingressClassName: nginx # Display [<CLASS>:nginx]
   tls:
     - hosts:
         - jenkins.e8s.io
@@ -222,8 +258,12 @@ spec:
     - host: jenkins.e8s.io
       http:
         paths:
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
-          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
+          # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:
@@ -234,8 +274,12 @@ spec:
     - host: dashboard.jenkins.e8s.io
       http:
         paths:
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
-          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
+          # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:

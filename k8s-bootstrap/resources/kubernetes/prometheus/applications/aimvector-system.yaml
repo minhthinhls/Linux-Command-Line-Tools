@@ -92,26 +92,47 @@ spec:
 #      name: letsencrypt-production
 #      kind: ClusterIssuer
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Deploying multiple Ingress controllers will result in all controllers simultaneously racing to update Ingress status in confusing ways.
+# @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @solution: Declare explicit IngressClasses to fix this problem.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# * Using ${annotation} [kubernetes.io/ingress.class]
+# * Using ${properties} [ingress.spec.ingressClassName]
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prometheus-agent
-  namespace: aimvector-system # monitoring # aimvector-system
+  namespace: aimvector-system # monitoring
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
-  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}
+  # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}.
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
   annotations:
     kubernetes.io/tls-acme: "true"
-    # @deprecated: Deprecated from Kubernetes v1.22+.
-    # @description: Deploying multiple Ingress controllers resulted all controllers simultaneously racing to update Ingress status in confusing ways...
-    # @see {@link https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/}
-    kubernetes.io/ingress.class: nginx
-    # @deprecated: Deprecated {@resources: nginx.ingress.kubernetes.io/add-base-url} from NGINX Ingress Controller.
-    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @deprecated: Deprecated from Kubernetes v1.18+.
+    # @see {@link https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/}.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # kubernetes.io/ingress.class: nginx
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    ingress.kubernetes.io/class-name: nginx
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @deprecated: {@resource: [nginx.ingress.kubernetes.io/add-base-url]} from NGINX Ingress Controller.
+    # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 spec:
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  # @see {@link https://stackoverflow.com/questions/72932892/class-name-shows-none-for-ingress-object-in-local-kubernetes}.
+  # @see {@link https://kubernetes.io/docs/concepts/services-networking/ingress/#deprecated-annotation}.
+  # --------------------------------------------------------------------------------------------------------------------------------------------------
+  ingressClassName: nginx # Display [<CLASS>:nginx]
   tls:
     - hosts:
         - prometheus.aimvector.e8s.io
@@ -123,8 +144,12 @@ spec:
     - host: prometheus.aimvector.e8s.io
       http:
         paths:
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
-          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
+          # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:
@@ -135,8 +160,12 @@ spec:
     - host: dashboard.prometheus.aimvector.e8s.io
       http:
         paths:
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
-          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
+          # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
+          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:

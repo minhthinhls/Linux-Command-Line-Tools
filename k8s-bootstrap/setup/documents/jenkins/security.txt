@@ -1,0 +1,34 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Configure RBAC Permission :: [Admin, Guess, ...etc].
+# @see {@link https://docs.bitnami.com/azure-templates/apps/jenkins/troubleshooting/configure-jenkins-security/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create [Guess] User and Apply Read-Only Permission.
+# @target {@link https://jenkins.e8s.io/configureSecurity/}.
+# @target {@link https://jenkins.e8s.io/securityRealm/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> @username: guest
+> @password: 123456
+> Full Name: Guest
+> Email Address: guest@e8s.io
+> Time Zone: Asia/Ho_Chi_Minh
+
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create [Guess] User and Apply Read-Only Permission.
+# @target {@link https://jenkins.e8s.io/configureSecurity/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> Authorization -> [Matrix-based Security]
+  + Overall: Read
+  + Credentials: View
+  + Job: Read
+  + View: Read
+  + Metrics: View
+
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Resolve No Valid Crumb on Jenkins HTTP Request pass-through Reverse-Proxy (NGINX).
+# @see {@link https://stackoverflow.com/questions/44711696/jenkins-403-no-valid-crumb-was-included-in-the-request}.
+# @see {@link https://jenkins.e8s.io/configureSecurity/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+>> [CSRF Protection]::[Enable Proxy Compatibility]
+

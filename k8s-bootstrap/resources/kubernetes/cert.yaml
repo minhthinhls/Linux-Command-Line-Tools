@@ -11,7 +11,7 @@ metadata:
     use-digitalocean-dns01-solver: "true"
 spec:
   secretName: wildcard-argocd-tls
-  commonName: '*.argocd.e8s.io'
+  commonName: "*.argocd.e8s.io"
   dnsNames:
     - "argocd.e8s.io"
     - "*.argocd.e8s.io"
@@ -32,7 +32,7 @@ metadata:
     use-digitalocean-dns01-solver: "true"
 spec:
   secretName: wildcard-jenkins-tls
-  commonName: '*.jenkins.e8s.io'
+  commonName: "*.jenkins.e8s.io"
   dnsNames:
     - "jenkins.e8s.io"
     - "*.jenkins.e8s.io"
@@ -53,7 +53,7 @@ metadata:
     use-digitalocean-dns01-solver: "true"
 spec:
   secretName: wildcard-portainer-tls
-  commonName: '*.portainer.e8s.io'
+  commonName: "*.portainer.e8s.io"
   dnsNames:
     - "portainer.e8s.io"
     - "*.portainer.e8s.io"
@@ -74,10 +74,32 @@ metadata:
     use-digitalocean-dns01-solver: "true"
 spec:
   secretName: wildcard-mongodb-tls
-  commonName: '*.mongodb.e8s.io'
+  commonName: "*.mongodb.e8s.io"
   dnsNames:
     - "mongodb.e8s.io"
     - "*.mongodb.e8s.io"
   issuerRef:
     name: letsencrypt-production
     kind: ClusterIssuer
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-dev
+  # @describe: `kubectl describe certificate --namespace k8s-dashboard-system`.
+  # @describe: `kubectl get challenges --namespace k8s-dashboard-system`.
+  # @describe: `kubectl get secrets --namespace k8s-dashboard-system`.
+  namespace: k8s-dashboard-system
+  labels:
+    use-digitalocean-dns01-solver: "true"
+spec:
+  secretName: wildcard-dev-tls
+  commonName: "*.dev.e8s.io"
+  dnsNames:
+    - "dev.e8s.io"
+    - "*.dev.e8s.io"
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+

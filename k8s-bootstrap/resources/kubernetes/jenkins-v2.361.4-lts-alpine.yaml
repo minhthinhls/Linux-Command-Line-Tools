@@ -1,49 +1,94 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Jenkins Deployment via Kubernetes Template Engines.
+# @see {@link https://github1s.com/marcel-dempers/docker-development-youtube-series/blob/HEAD/jenkins/jenkins.deployment.yaml}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  # [ALTERNATIVE COMMAND] > kubectl create namespace [NAMESPACE]
-  name: mongodb-staging
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml
+  name: jenkins-system
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: jenkins-system
   labels:
-    name: mongodb-staging
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.361.4-lts-alpine"
 
 ---
-apiVersion: v1
-kind: Secret
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: mongodb-secret
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-type: Opaque
-data:
-  mongo-root-username: dXNlcm5hbWU=
-  mongo-root-password: cGFzc3dvcmQ=
+  name: jenkins
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods/exec" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods/log" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "secrets" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "services" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "ingresses" ]
+    verbs: [ "create", "delete", "get", "list", "patch", "update" ]
 
 ---
-apiVersion: v1
-kind: ConfigMap
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
 metadata:
-  name: mongodb-configmap
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-data:
-  # mongodb_server: mongodb-service.mongodb-staging
-  mongodb_server: mongodb-service # Service can be accessed via Global Namespace.
+  name: jenkins
+  namespace: jenkins-system
+  labels:
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.361.4-lts-alpine"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: jenkins-system
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Apply this watcher via the following Commands.
 # @command >> sudo watch kubectl get sc,pv,pvc --output wide --all-namespaces;
-# @command >> sudo kubectl delete --namespace mongodb-staging pv/mongodb pvc/mongodb;
+# @command >> sudo kubectl delete --namespace jenkins-system pv/jenkins pvc/jenkins;
 # @see {@link https://stackoverflow.com/questions/34282704/can-a-pvc-be-bound-to-a-specific-pv}.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
-# Source: mongodb/templates/pvc.yaml
-apiVersion: v1
+# Source: jenkins/templates/pvc.yaml
 kind: PersistentVolumeClaim
+apiVersion: v1
 metadata:
-  name: mongodb
-  namespace: mongodb-staging
+  name: jenkins
+  namespace: jenkins-system
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: "generic"
+  labels:
+    io.portainer.kubernetes.application.stack: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.361.4-lts-alpine"
 spec:
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: In case Maintainer needs to Remount Persistent Volume back into PVC.
@@ -51,7 +96,7 @@ spec:
   # @see {@link https://webera.blog/recreate-an-existing-pvc-in-a-new-namespace-but-reusing-the-same-pv-without-data-loss-2c7326c0035a}.
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: After finishing apply `volumeName`. Delete the ${LAST_APPLIED_CONFIG} @{annotation} and re-apply this PVC Resource.
-  # @command >> kubectl annotate pvc mongodb --namespace mongodb-staging kubectl.kubernetes.io/last-applied-configuration-
+  # @command >> kubectl annotate pvc jenkins --namespace jenkins-system kubectl.kubernetes.io/last-applied-configuration-
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # volumeName: "pvc-********-****-****-****-************"
   accessModes:
@@ -65,161 +110,98 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongodb
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
+  name: jenkins
+  namespace: jenkins-system
   labels:
-    app: mongodb
+    app: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      app: mongodb
+      app: jenkins
+      app.kubernetes.io/name: jenkins
+      app.kubernetes.io/instance: jenkins
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
-        app: mongodb
+        app: jenkins
+        app.kubernetes.io/name: jenkins
+        app.kubernetes.io/instance: jenkins
     spec:
+      serviceAccountName: jenkins
       containers:
-        - name: mongodb
-          image: mongo:4.4.13
-          ports:
-            # @description: Database Application Exposed via Custom HTTP Port::27017
-            - containerPort: 27017
+        - name: jenkins
+          image: jenkins/jenkins:2.361.4-lts-alpine
+          imagePullPolicy: IfNotPresent
           env:
-            - name: MONGO_INITDB_ROOT_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-username
-            - name: MONGO_INITDB_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-password
+            - name: JAVA_OPTS
+              value: -Xmx2048m -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 50000
+              protocol: TCP
           volumeMounts:
-            - name: database
-              mountPath: /data/db/
+            - mountPath: /var/jenkins_home
+              name: jenkins
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 0
+      terminationGracePeriodSeconds: 30
       volumes:
-        - name: database
+        - name: jenkins
           persistentVolumeClaim:
-            claimName: mongodb
+            claimName: jenkins
 
 ---
+# Source: portainer/templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongodb-service
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-spec:
-  selector:
-    app: mongodb
-  ports:
-    # [[PROVIDE SERVICE-NAME WITHIN MULTIPLE SERVICES ENTRY-POINT]] >> @see {@link https://www.youtube.com/watch?v=T4Z7visMM4E&t=766s}
-    - name: mongodb
-      protocol: TCP
-      # [Kubernetes Cluster] - Service Port.
-      port: 27017
-      # [Kubernetes Cluster] - Deployment (Pods) Port.
-      targetPort: 27017
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mongo-express
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
+  name: jenkins
+  namespace: jenkins-system
   labels:
-    app: mongo-express
+    io.portainer.kubernetes.application.stack: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/version: "jenkins-v2.361.4-lts-alpine"
 spec:
-  replicas: 1
-  # [DISPLAY PODS COMMAND] > kubectl get pod --namespace=mongodb-staging
-  selector:
-    matchLabels:
-      app: mongo-express
-  template:
-    # [DISPLAY PODS LOGGER COMMAND] > kubectl logs <POD_NAME> --namespace=mongodb-staging
-    metadata:
-      labels:
-        app: mongo-express
-    spec:
-      containers:
-        - name: mongo-express
-          image: mongo-express:0.54.0
-          ports:
-            # @description: Docker Application User Interface Exposed via Default HTTP Port::80
-            - containerPort: 80
-          env:
-            # @description: Mongo-Express Application Default HTTP Port::8081
-            # @description: Hacky Modify Mongo-Express Application into HTTP Port::80
-            # @see {@link https://stackoverflow.com/questions/46134197/how-to-change-the-port-number-8081-of-mongo-express}
-            - name: VCAP_APP_PORT
-              value: "80"
-            - name: ME_CONFIG_MONGODB_ADMINUSERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-username
-            - name: ME_CONFIG_MONGODB_ADMINPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-password
-            - name: ME_CONFIG_MONGODB_SERVER
-              valueFrom:
-                configMapKeyRef:
-                  name: mongodb-configmap
-                  key: mongodb_server
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongo-express-service
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-spec:
-  selector:
-    app: mongo-express
+  type: ClusterIP
   ports:
-    # [[PROVIDE SERVICE-NAME WITHIN MULTIPLE SERVICES ENTRY-POINT]] >> @see {@link https://www.youtube.com/watch?v=T4Z7visMM4E&t=766s}
-    - name: mongo-express
+    - name: ui
+      port: 8080
+      targetPort: 8080
       protocol: TCP
-      # [Kubernetes Cluster] - Service Port.
-      port: 27027
-      # [Kubernetes Cluster] - Deployment (Pods) Port.
-      targetPort: 80
+    - name: slave
+      port: 50000
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: 8080
+  selector:
+    app: jenkins
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
 
 #  ---
 #  apiVersion: cert-manager.io/v1
 #  kind: Certificate
 #  metadata:
-#    name: mongo-express
-#    # @describe: `kubectl describe certificate --namespace mongodb-staging`.
-#    # @describe: `kubectl get secrets --namespace mongodb-staging`.
-#    namespace: mongodb-staging
+#    name: jenkins
+#    # @describe: `kubectl describe certificate --namespace jenkins-system`.
+#    # @describe: `kubectl get secrets --namespace jenkins-system`.
+#    namespace: jenkins-system
 #  spec:
 #    dnsNames:
-#      - mongo-express.e8s.io
-#    secretName: mongo-express-tls
-#    issuerRef:
-#      name: letsencrypt-production
-#      kind: ClusterIssuer
-
-#  ---
-#  apiVersion: cert-manager.io/v1
-#  kind: Certificate
-#  metadata:
-#    name: mongo-dashboard
-#    # @describe: `kubectl describe certificate --namespace mongodb-staging`.
-#    # @describe: `kubectl get secrets --namespace mongodb-staging`.
-#    namespace: mongodb-staging
-#  spec:
-#    dnsNames:
-#      - mongo-dashboard.e8s.io
-#    secretName: mongo-dashboard-tls
+#      - jenkins.e8s.io
+#    secretName: jenkins-tls
 #    issuerRef:
 #      name: letsencrypt-production
 #      kind: ClusterIssuer
@@ -237,8 +219,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mongo-express
-  namespace: mongodb-staging
+  name: jenkins
+  namespace: jenkins-system
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
   # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}.
@@ -267,29 +249,13 @@ spec:
   ingressClassName: nginx # Display [<CLASS>:nginx]
   tls:
     - hosts:
-        - mongodb.e8s.io
-      secretName: wildcard-mongodb-tls
+        - jenkins.e8s.io
+      secretName: wildcard-jenkins-tls
     - hosts:
-        - express.mongodb.e8s.io
-      secretName: wildcard-mongodb-tls
-    - hosts:
-        - dashboard.mongodb.e8s.io
-      secretName: wildcard-mongodb-tls
+        - dashboard.jenkins.e8s.io
+      secretName: wildcard-jenkins-tls
   rules:
-    - host: mongodb.e8s.io
-      http:
-        paths:
-          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
-          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
-          # @deprecated: [- path: /mongo-express]
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: mongo-express-service
-                port:
-                  number: 27027
-    - host: express.mongodb.e8s.io
+    - host: jenkins.e8s.io
       http:
         paths:
           # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -298,16 +264,14 @@ spec:
           # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
           # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
           # ------------------------------------------------------------------------------------------------------------------------------------------
-          # @deprecated: [- path: /mongo-express]
-          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: mongo-express-service
+                name: jenkins
                 port:
-                  number: 27027
-    - host: dashboard.mongodb.e8s.io
+                  number: 8080
+    - host: dashboard.jenkins.e8s.io
       http:
         paths:
           # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -316,13 +280,11 @@ spec:
           # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
           # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
           # ------------------------------------------------------------------------------------------------------------------------------------------
-          # @deprecated: [- path: /mongo-express]
-          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: mongo-express-service
+                name: jenkins
                 port:
-                  number: 27027
+                  number: 8080
 

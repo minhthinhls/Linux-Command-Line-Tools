@@ -1,0 +1,65 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Restrict Kubernetes Resources Usage via ${ResourceQuota} within specified ${NAMESPACE}.
+# @see {@link https://densify.com/kubernetes-autoscaling/kubernetes-resource-quota/}.
+# @see {@link https://stackoverflow.com/questions/52898753/is-there-a-way-to-use-kubernetes-rbac-to-stop-a-user-from-creating-an-external-l}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply this ${ResourceQuota} via the following Commands.
+# @see {@link https://kubernetes.io/docs/concepts/policy/resource-quotas/}.
+# @command >> kubectl describe quota --namespace=<NAMESPACE> ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Quantity is a fixed-point representation of a number.
+# @description: It provides convenient marshaling/un-marshaling in JSON and YAML, in addition to String() and AsInt64() accessors.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @command >> kubectl explain ResourceQuota.spec.hard ;
+# @CPU: [["0.5", "500m"], ["1", "1000m"], ["1.5", "1500m"], ["2", "2000m"]].
+# @MEMORY: [["0.5Gi", "512Mi"], ["1Gi", "1024Mi"], ["1.5Gi", "1536Mi"], ["2Gi", "2048Mi"]].
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ $.Values.Name }}
+  namespace: {{ $.Values.Namespace }}
+spec:
+  hard:
+    limits.cpu: 2000m
+    limits.memory: 8Gi
+    requests.cpu: 1000m
+    requests.memory: 4Gi
+    services.loadbalancers: 3
+    services.nodeports: 3
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply this ${LimitRange} via the following Commands.
+# @see {@link https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/}.
+# @see {@link https://reuvenharrison.medium.com/kubernetes-resource-limits-defaults-and-limitranges-f1eed8655474}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @ResourceBehavior:
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# 1. New Kubernetes clusters have a single predefined LimitRange named “limits” in the default namespace with
+#    CPU limit set to 100m (that’s 1/10 of a CPU core). Other namespaces don’t have a default LimitRange but you can create them on your own.
+# 2. There may be multiple LimitRanges per namespace.
+#    In this case, Kubernetes will use one of them for the default limits (and all of them for min and max limits).
+# 3. Containers that were created before the LimitRange will not be affected by it.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ $.Values.Name }}
+  namespace: {{ $.Values.Namespace }}
+spec:
+  limits:
+    - type: Container
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: Default resource requirement ${LIMIT} value by ${`CONTAINER`} if resource limit is omitted.
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      default:
+        cpu: 250m
+        memory: 1024Mi
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      # @description: DefaultRequest is the default resource requirement ${REQUEST} value by ${`CONTAINER`} if resource request is omitted.
+      # ----------------------------------------------------------------------------------------------------------------------------------------------
+      defaultRequest:
+        cpu: 125m
+        memory: 512Mi

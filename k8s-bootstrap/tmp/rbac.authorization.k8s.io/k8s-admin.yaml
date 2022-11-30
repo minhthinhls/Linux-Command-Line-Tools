@@ -1,0 +1,58 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Copyright 2017 The Kubernetes Authors.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link http://www.apache.org/licenses/LICENSE-2.0}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-admin
+  namespace: kube-system
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Restrict Kubernetes Resources Usage via ${ResourceQuota} within specified ${NAMESPACE}.
+# @see {@link https://medium.com/@kanrangsan/creating-admin-user-to-access-kubernetes-dashboard-723d6c9764e4}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin # Fully Authorized Permissions.
+subjects:
+  - kind: ServiceAccount
+    name: k8s-admin
+    namespace: kube-system
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate Base64 [Secret Tokens] for [Service Accounts] within Kubernetes (v1.24+).
+# @command >> kubectl get secret/k8s-admin-token --namespace=kube-system -o jsonpath='{.data.token}' | base64 --decode; echo "";
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: k8s-admin-token
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: k8s-admin
+type: kubernetes.io/service-account-token
+data:
+  # You can include additional key value pairs as you do with Opaque Secrets.
+  extra: YmFyCg==
+

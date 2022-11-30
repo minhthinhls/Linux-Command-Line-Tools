@@ -64,7 +64,7 @@ metadata:
   name: ${NAME}
 rules:
   - apiGroups:
-      - '' # An empty string designates the core API group.
+      - '' # An empty string designates the core API group [$${apiVersion} == "v1"].
     resources:
       - pods
       - nodes
@@ -108,7 +108,7 @@ subjects:
     namespace: ${NAMESPACE}
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @description: Generate Base64 [Secret Tokens] for [Service Accounts] within Kubernetes v1.24.
+# @description: Generate Base64 [Secret Tokens] for [Service Accounts] within Kubernetes (v1.24+).
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
 apiVersion: v1

@@ -1,49 +1,65 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Portainer Community Edition Deployment via Kubernetes Template Engines.
+# @see {@link https://github1s.com/portainer/k8s/blob/master/deploy/manifests/portainer/portainer.yaml}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
+# Source: portainer/templates/namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  # [ALTERNATIVE COMMAND] > kubectl create namespace [NAMESPACE]
-  name: mongodb-staging
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml
+  name: portainer-system
+
+---
+# Source: portainer/templates/ServiceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: portainer-sa-clusteradmin
+  namespace: portainer-system
   labels:
-    name: mongodb-staging
+    app.kubernetes.io/name: portainer
+    app.kubernetes.io/instance: portainer
+    app.kubernetes.io/version: "portainer-v2.16.2-alpine"
 
 ---
-apiVersion: v1
-kind: Secret
+# Source: portainer/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
-  name: mongodb-secret
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-type: Opaque
-data:
-  mongo-root-username: dXNlcm5hbWU=
-  mongo-root-password: cGFzc3dvcmQ=
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mongodb-configmap
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-data:
-  # mongodb_server: mongodb-service.mongodb-staging
-  mongodb_server: mongodb-service # Service can be accessed via Global Namespace.
+  name: portainer
+  labels:
+    app.kubernetes.io/name: portainer
+    app.kubernetes.io/instance: portainer
+    app.kubernetes.io/version: "portainer-v2.16.2-alpine"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    namespace: portainer-system
+    name: portainer-sa-clusteradmin
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Apply this watcher via the following Commands.
 # @command >> sudo watch kubectl get sc,pv,pvc --output wide --all-namespaces;
-# @command >> sudo kubectl delete --namespace mongodb-staging pv/mongodb pvc/mongodb;
+# @command >> sudo kubectl delete --namespace portainer-system pv/portainer pvc/portainer;
 # @see {@link https://stackoverflow.com/questions/34282704/can-a-pvc-be-bound-to-a-specific-pv}.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
-# Source: mongodb/templates/pvc.yaml
-apiVersion: v1
+# Source: portainer/templates/pvc.yaml
 kind: PersistentVolumeClaim
+apiVersion: v1
 metadata:
-  name: mongodb
-  namespace: mongodb-staging
+  name: portainer
+  namespace: portainer-system
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: "generic"
+  labels:
+    io.portainer.kubernetes.application.stack: portainer
+    app.kubernetes.io/name: portainer
+    app.kubernetes.io/instance: portainer
+    app.kubernetes.io/version: "portainer-v2.16.2-alpine"
 spec:
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: In case Maintainer needs to Remount Persistent Volume back into PVC.
@@ -51,7 +67,7 @@ spec:
   # @see {@link https://webera.blog/recreate-an-existing-pvc-in-a-new-namespace-but-reusing-the-same-pv-without-data-loss-2c7326c0035a}.
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: After finishing apply `volumeName`. Delete the ${LAST_APPLIED_CONFIG} @{annotation} and re-apply this PVC Resource.
-  # @command >> kubectl annotate pvc mongodb --namespace mongodb-staging kubectl.kubernetes.io/last-applied-configuration-
+  # @command >> kubectl annotate pvc portainer --namespace portainer-system kubectl.kubernetes.io/last-applied-configuration-
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # volumeName: "pvc-********-****-****-****-************"
   accessModes:
@@ -62,148 +78,117 @@ spec:
       storage: 10Gi
 
 ---
+# Source: portainer/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongodb
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
+  name: portainer
+  namespace: portainer-system
   labels:
-    app: mongodb
+    io.portainer.kubernetes.application.stack: portainer
+    app.kubernetes.io/name: portainer
+    app.kubernetes.io/instance: portainer
+    app.kubernetes.io/version: "portainer-v2.16.2-alpine"
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: "Recreate"
   selector:
     matchLabels:
-      app: mongodb
+      app.kubernetes.io/name: portainer
+      app.kubernetes.io/instance: portainer
   template:
     metadata:
       labels:
-        app: mongodb
+        app.kubernetes.io/name: portainer
+        app.kubernetes.io/instance: portainer
     spec:
-      containers:
-        - name: mongodb
-          image: mongo:4.4.13
-          ports:
-            # @description: Database Application Exposed via Custom HTTP Port::27017
-            - containerPort: 27017
-          env:
-            - name: MONGO_INITDB_ROOT_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-username
-            - name: MONGO_INITDB_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-password
-          volumeMounts:
-            - name: database
-              mountPath: /data/db/
+      nodeSelector:
+        { }
+      serviceAccountName: portainer-sa-clusteradmin
       volumes:
-        - name: database
+        - name: "data"
           persistentVolumeClaim:
-            claimName: mongodb
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongodb-service
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-spec:
-  selector:
-    app: mongodb
-  ports:
-    # [[PROVIDE SERVICE-NAME WITHIN MULTIPLE SERVICES ENTRY-POINT]] >> @see {@link https://www.youtube.com/watch?v=T4Z7visMM4E&t=766s}
-    - name: mongodb
-      protocol: TCP
-      # [Kubernetes Cluster] - Service Port.
-      port: 27017
-      # [Kubernetes Cluster] - Deployment (Pods) Port.
-      targetPort: 27017
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mongo-express
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
-  labels:
-    app: mongo-express
-spec:
-  replicas: 1
-  # [DISPLAY PODS COMMAND] > kubectl get pod --namespace=mongodb-staging
-  selector:
-    matchLabels:
-      app: mongo-express
-  template:
-    # [DISPLAY PODS LOGGER COMMAND] > kubectl logs <POD_NAME> --namespace=mongodb-staging
-    metadata:
-      labels:
-        app: mongo-express
-    spec:
+            claimName: portainer
       containers:
-        - name: mongo-express
-          image: mongo-express:0.54.0
+        - name: portainer
+          image: "portainer/portainer-ee:2.16.2-alpine"
+          imagePullPolicy: Always
+          args:
+            - '--tunnel-port=30776'
+          volumeMounts:
+            - name: data
+              mountPath: /data
           ports:
-            # @description: Docker Application User Interface Exposed via Default HTTP Port::80
-            - containerPort: 80
-          env:
-            # @description: Mongo-Express Application Default HTTP Port::8081
-            # @description: Hacky Modify Mongo-Express Application into HTTP Port::80
-            # @see {@link https://stackoverflow.com/questions/46134197/how-to-change-the-port-number-8081-of-mongo-express}
-            - name: VCAP_APP_PORT
-              value: "80"
-            - name: ME_CONFIG_MONGODB_ADMINUSERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-username
-            - name: ME_CONFIG_MONGODB_ADMINPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mongodb-secret
-                  key: mongo-root-password
-            - name: ME_CONFIG_MONGODB_SERVER
-              valueFrom:
-                configMapKeyRef:
-                  name: mongodb-configmap
-                  key: mongodb_server
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+            - name: https
+              containerPort: 9443
+              protocol: TCP
+            - name: tcp-edge
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9443
+              scheme: HTTPS
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9443
+              scheme: HTTPS
+          resources:
+            { }
 
 ---
+# Source: portainer/templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo-express-service
-  # [ALTERNATIVE COMMAND] > kubectl apply --filename *.yaml --namespace=mongodb-staging
-  namespace: mongodb-staging
+  name: portainer
+  namespace: portainer-system
+  labels:
+    io.portainer.kubernetes.application.stack: portainer
+    app.kubernetes.io/name: portainer
+    app.kubernetes.io/instance: portainer
+    app.kubernetes.io/version: "portainer-v2.16.2-alpine"
 spec:
-  selector:
-    app: mongo-express
+  type: NodePort
   ports:
-    # [[PROVIDE SERVICE-NAME WITHIN MULTIPLE SERVICES ENTRY-POINT]] >> @see {@link https://www.youtube.com/watch?v=T4Z7visMM4E&t=766s}
-    - name: mongo-express
+    - port: 9000
+      targetPort: 9000
       protocol: TCP
-      # [Kubernetes Cluster] - Service Port.
-      port: 27027
-      # [Kubernetes Cluster] - Deployment (Pods) Port.
-      targetPort: 80
+      name: http
+      nodePort: 30777
+    - port: 9443
+      targetPort: 9443
+      protocol: TCP
+      name: https
+      nodePort: 30779
+    - port: 30776
+      targetPort: 30776
+      protocol: TCP
+      name: edge
+      nodePort: 30776
+  selector:
+    app.kubernetes.io/name: portainer
+    app.kubernetes.io/instance: portainer
 
 #  ---
 #  apiVersion: cert-manager.io/v1
 #  kind: Certificate
 #  metadata:
-#    name: mongo-express
-#    # @describe: `kubectl describe certificate --namespace mongodb-staging`.
-#    # @describe: `kubectl get secrets --namespace mongodb-staging`.
-#    namespace: mongodb-staging
+#    name: portainer
+#    # @describe: `kubectl describe certificate --namespace portainer-system`.
+#    # @describe: `kubectl get secrets --namespace portainer-system`.
+#    namespace: portainer-system
 #  spec:
 #    dnsNames:
-#      - mongo-express.e8s.io
-#    secretName: mongo-express-tls
+#      - portainer.e8s.io
+#    secretName: portainer-tls
 #    issuerRef:
 #      name: letsencrypt-production
 #      kind: ClusterIssuer
@@ -212,14 +197,14 @@ spec:
 #  apiVersion: cert-manager.io/v1
 #  kind: Certificate
 #  metadata:
-#    name: mongo-dashboard
-#    # @describe: `kubectl describe certificate --namespace mongodb-staging`.
-#    # @describe: `kubectl get secrets --namespace mongodb-staging`.
-#    namespace: mongodb-staging
+#    name: portainer-dashboard
+#    # @describe: `kubectl describe certificate --namespace portainer-system`.
+#    # @describe: `kubectl get secrets --namespace portainer-system`.
+#    namespace: portainer-system
 #  spec:
 #    dnsNames:
-#      - mongo-dashboard.e8s.io
-#    secretName: mongo-dashboard-tls
+#      - portainer-dashboard.e8s.io
+#    secretName: portainer-dashboard-tls
 #    issuerRef:
 #      name: letsencrypt-production
 #      kind: ClusterIssuer
@@ -237,8 +222,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mongo-express
-  namespace: mongodb-staging
+  name: portainer
+  namespace: portainer-system
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @description: Ingress Rules: Wildcard & Specific Sub-Domain.
   # @see {@link https://stackoverflow.com/questions/52328483/kubernetes-ingress-rules-how-to-use-wildcard-and-specific-subdomain-together}.
@@ -267,29 +252,13 @@ spec:
   ingressClassName: nginx # Display [<CLASS>:nginx]
   tls:
     - hosts:
-        - mongodb.e8s.io
-      secretName: wildcard-mongodb-tls
+        - portainer.e8s.io
+      secretName: wildcard-portainer-tls
     - hosts:
-        - express.mongodb.e8s.io
-      secretName: wildcard-mongodb-tls
-    - hosts:
-        - dashboard.mongodb.e8s.io
-      secretName: wildcard-mongodb-tls
+        - dashboard.portainer.e8s.io
+      secretName: wildcard-portainer-tls
   rules:
-    - host: mongodb.e8s.io
-      http:
-        paths:
-          # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
-          # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}
-          # @deprecated: [- path: /mongo-express]
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: mongo-express-service
-                port:
-                  number: 27027
-    - host: express.mongodb.e8s.io
+    - host: portainer.e8s.io
       http:
         paths:
           # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -298,16 +267,14 @@ spec:
           # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
           # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
           # ------------------------------------------------------------------------------------------------------------------------------------------
-          # @deprecated: [- path: /mongo-express]
-          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: mongo-express-service
+                name: portainer
                 port:
-                  number: 27027
-    - host: dashboard.mongodb.e8s.io
+                  number: 9000
+    - host: dashboard.portainer.e8s.io
       http:
         paths:
           # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -316,13 +283,11 @@ spec:
           # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
           # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
           # ------------------------------------------------------------------------------------------------------------------------------------------
-          # @deprecated: [- path: /mongo-express]
-          # ------------------------------------------------------------------------------------------------------------------------------------------
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: mongo-express-service
+                name: portainer
                 port:
-                  number: 27027
+                  number: 9000
 

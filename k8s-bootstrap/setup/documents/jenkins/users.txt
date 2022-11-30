@@ -5,3 +5,11 @@
 > Full Name: Admin
 > Email Address: huynhleminhthinh@gmail.com
 > Time Zone: Asia/Ho_Chi_Minh
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Guest Configuration.
+# @target {@link https://jenkins.e8s.io/user/guest/configure}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+> Full Name: Guest
+> Email Address: guest@e8s.io
+> Time Zone: Asia/Ho_Chi_Minh

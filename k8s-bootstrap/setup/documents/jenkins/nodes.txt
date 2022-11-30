@@ -6,8 +6,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @note: Must ensure restriction for CI/CD Builds on Jenkins Pod.
 # @details: Prevent CI/CD Builds on Jenkins Spawned Pod within Kubernetes Cluster.
+# @upgrade: Allow CI/CD Builds on Jenkins Spawned Pod within Kubernetes Cluster (2 tasks) as Main Thread to fork Jenkins Kubernetes Template Agents.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 > Jenkins Controller -> [Built-In Node]
-  + Executors: 0 (tasks).
+  + Executors: 2 (tasks).
   + Labels: [default-node]
   + Description: The Maximum number of Concurrent Builds that Jenkins may Schedule on this node.

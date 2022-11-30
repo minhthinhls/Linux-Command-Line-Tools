@@ -1,6 +1,8 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Ingress Controller: Wildcard & Specific Sub-Domain Resolver.
-# @see {@link https://github.com/kubernetes/ingress-nginx/releases/controller-v1.1.3}
-# @see {@link https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.3/deploy/static/provider/cloud/deploy.yaml}
+# @see {@link https://github.com/kubernetes/ingress-nginx/releases/controller-v1.1.3}.
+# @see {@link https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.3/deploy/static/provider/cloud/deploy.yaml}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 ---
 apiVersion: v1
 kind: Namespace
@@ -604,13 +606,15 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
 metadata:
+  name: nginx
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.1.3
-  name: nginx
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
 spec:
   controller: k8s.io/ingress-nginx
 

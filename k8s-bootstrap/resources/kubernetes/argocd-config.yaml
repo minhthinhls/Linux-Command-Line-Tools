@@ -4,8 +4,9 @@
 # @download {@link https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Login to your ArgoCD Client Interface and change Password for Guest Account.
-# >> argocd login argocd-server.argocd-system.svc.cluster.local --username admin --grpc-web-root-path /
-# >> argocd account update-password --account guest --new-password 12345678 --current-password <PASSWORD>
+# >> argocd login argocd-server.argocd-system.svc.cluster.local --username admin --grpc-web-root-path /;
+# >> argocd account update-password --account guest --new-password 123456 --current-password <PASSWORD>;
+# >> argocd account update-password --account guest --new-password 123456;
 # >> argocd account list;
 # >> argocd cluster list;
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

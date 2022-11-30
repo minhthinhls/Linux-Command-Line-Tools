@@ -13,7 +13,7 @@ ConfigMap:
       password: "`5$!DfwSJ.Y(d:@M"
 Image:
   name: redis
-  tag: 7.0.4-alpine
+  tag: 7.0.5-alpine
 Deployment:
   podLabel: redis
   replicas: 9 # Number of Stateful Pods to Spawn.

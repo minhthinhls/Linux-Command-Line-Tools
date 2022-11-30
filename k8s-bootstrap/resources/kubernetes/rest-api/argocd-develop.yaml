@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://gitlab.com/huynhleminhthinh/rest-api.git
     targetRevision: v2-develop
-    path: ./manifest
+    path: ./manifests/develop/deployment/
     directory:
       recurse: true
   destination:

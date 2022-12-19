@@ -714,22 +714,22 @@ spec:
     app.kubernetes.io/expose: internal
     app.kubernetes.io/version: "v2.7.0"
 
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: k8s-dashboard
-  namespace: k8s-dashboard-system
-  labels:
-    use-digitalocean-dns01-solver: "false"
-spec:
-  secretName: k8s-dashboard-tls
-  commonName: "k8s-dashboard.dev.e8s.io"
-  dnsNames:
-    - "k8s-dashboard.dev.e8s.io"
-  issuerRef:
-    name: letsencrypt-production
-    kind: ClusterIssuer
+# ---
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: k8s-dashboard
+#   namespace: k8s-dashboard-system
+#   labels:
+#     use-digitalocean-dns01-solver: "false"
+# spec:
+#   secretName: k8s-dashboard-tls
+#   commonName: "k8s-dashboard.dev.e8s.io"
+#   dnsNames:
+#     - "k8s-dashboard.dev.e8s.io"
+#   issuerRef:
+#     name: letsencrypt-production
+#     kind: ClusterIssuer
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Deploying multiple Ingress controllers will result in all controllers simultaneously racing to update Ingress status in confusing ways.
@@ -763,11 +763,13 @@ metadata:
     # @deprecated: {@resource: [nginx.ingress.kubernetes.io/add-base-url]} from NGINX Ingress Controller.
     # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
     # ------------------------------------------------------------------------------------------------------------------------------------------------
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/ssl-passthrough: "false" # Let NGINX served SSL Certificate for trusted Authority.
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/configuration-snippet: | # Attention: the trailing slash of "$1/" prevent redirect looping.
+      rewrite ^(/secret)$ $1/ redirect;
 spec:
   # --------------------------------------------------------------------------------------------------------------------------------------------------
   # @see {@link https://stackoverflow.com/questions/72932892/class-name-shows-none-for-ingress-object-in-local-kubernetes}.
@@ -777,8 +779,8 @@ spec:
   tls:
     - hosts:
         - k8s-dashboard.dev.e8s.io
-      secretName: k8s-dashboard-tls
-    # secretName: wildcard-dev-tls
+    # secretName: k8s-dashboard-tls
+      secretName: wildcard-dev-tls
   rules:
     - host: k8s-dashboard.dev.e8s.io
       http:
@@ -787,17 +789,26 @@ spec:
           # @description: In case ${path} differ from ${rewrite-target}. All the following JS, CSS resources would have not been served correctly.
           # @see {@link https://github.com/kubernetes/ingress-nginx/issues/3770#issuecomment-464449348}.
           # @see {@link https://stackoverflow.com/questions/5462897/url-rewriting-broke-link-to-css}.
+          # @see {@link https://github.com/kubernetes/ingress-nginx/tree/main/docs/examples/rewrite}.
           # @see {@link https://github.com/kubernetes/ingress-nginx/issues/333}.
           # ------------------------------------------------------------------------------------------------------------------------------------------
           # @link: [/tmp/rbac.authorization.k8s.io/k8s-admin.yaml] <- Deploy Manifest to retrieve Cluster Authorization for Dashboard Visualization.
           # ------------------------------------------------------------------------------------------------------------------------------------------
           # @deprecated: [- path: /k8s-dashboard]
           # ------------------------------------------------------------------------------------------------------------------------------------------
-          - path: /
+          - path: /()(.*)
             pathType: Prefix
             backend:
               service:
                 name: k8s-dashboard-external
+                port:
+                  name: https
+                # number: 443
+          - path: /secret(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: k8s-dashboard-internal
                 port:
                   name: https
                 # number: 443

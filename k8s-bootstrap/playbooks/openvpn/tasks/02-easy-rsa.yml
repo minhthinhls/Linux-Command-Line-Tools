@@ -1,0 +1,83 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create Sufficient Directories within Administrator Machines.
+# @command >> mkdir --parents /tmp/downloads /usr/local/bin/easy-rsa ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Create Sufficient Directories within Administrator Machines.
+  include_tasks: "../modules/mkdir.yml"
+  loop:
+    - /tmp/downloads
+    - /usr/local/bin/easy-rsa/easyrsa
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Download Easy-RSA Dependency as Linux Utility.
+# @command >> curl -LO https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.1/EasyRSA-3.1.1.tgz --output-dir /tmp/downloads ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Download via CURL to specified Directory.
+# @see {@link https://serverfault.com/questions/166874/how-do-i-get-curl-to-save-a-file-to-a-specified-directory}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Download Easy-RSA Dependency as Linux Utility.
+  get_url:
+    url: https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.1/EasyRSA-3.1.1.tgz
+    dest: /tmp/downloads/
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rw,g=r,o=r'
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Extract Easy-RSA Dependency into Local Bin Directory.
+# @command >> tar -C /usr/local/bin/easy-rsa/ -zxvf /tmp/downloads/EasyRSA-3.1.1.tgz --strip-components=1 ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Easy-RSA <= v3.0.8 cannot integrated with OpenSSL v3 by default.
+# @see {@link https://github.com/OpenVPN/easy-rsa/issues/454}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Extract Easy-RSA Dependency into Local Bin Directory.
+  unarchive:
+    src: /tmp/downloads/EasyRSA-3.1.1.tgz
+    dest: /usr/local/bin/easy-rsa/
+    remote_src: yes
+    extra_opts:
+      # - --gzip
+      # - --extract
+      # - --verbose
+      - --strip-components=1
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Setup PKI Directory Ownership for Security Best Practices.
+# @command >> chown -R root:root /usr/local/bin/easy-rsa/ ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Setup PKI Directory Ownership for Security Best Practices.
+  file:
+    path: /usr/local/bin/easy-rsa/
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: true
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provide Executing Permission for Easy-RSA Dependency.
+# @command >> chmod +x /usr/local/bin/easy-rsa ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Provide Executing Permission for Easy-RSA Dependency.
+  file:
+    path: /usr/local/bin/easy-rsa
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=rx,o=rx'
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Module for manipulating Files & Directories.
+# @see {@link https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create Symlink for Easy-RSA within `/usr/bin` environment $PATH.
+# @command >> ln --symbolic /usr/local/bin/easy-rsa/easyrsa /usr/bin/easyrsa ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Create Symlink for Easy-RSA within `/usr/bin` environment $PATH.
+  file:
+    src: /usr/local/bin/easy-rsa/easyrsa
+    dest: /usr/bin/easyrsa
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    state: link
+    force: true

@@ -1,0 +1,58 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - SSH error connection into new Domain.
+# @see {@link https://stackoverflow.com/questions/19766638/ssh-error-in-connection-to-a-new-domain}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Remove All SSH Known Hosts within Administrator Machines.
+  known_hosts:
+    name: "*"
+    path: /$HOME/.ssh/known_hosts
+    state: absent
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Root Package Repositories.
+# @see {@link https://makeuseof.com/fix-ifconfig-command-not-found-error-linux/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: '[HIGHEST PRIORITY] >> Install EPEL Release Package Manager.'
+  yum:
+    name: epel-release
+    state: latest
+    update_cache: true
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Root Package Controller.
+# @see {@link https://makeuseof.com/fix-ifconfig-command-not-found-error-linux/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: '[HIGHEST PRIORITY] >> Install [Dnf/Yum] Utils Package Manager.'
+  yum:
+    name: yum-utils
+    state: latest
+    update_cache: true
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Basic Package Dependencies.
+# @see {@link https://makeuseof.com/fix-ifconfig-command-not-found-error-linux/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Install Core Funtional Dependency YUM/DNF Packages for RHEL/CentOS 8.
+  yum:
+    name: "{{ item }}"
+    state: latest # @args::[present, latest, absent]
+    update_cache: true
+  loop:
+    - bind-utils
+    - ca-certificates
+    - easy-rsa # Ignore within path `/usr/share/easy-rsa/3/`. Manually install from Github & extract into `/usr/local/bin/easy-rsa/`.
+    - firewalld
+    - haproxy
+    - htop
+    - iptables
+    - net-tools
+    - nginx
+    - openssl
+    - openvpn
+    - tree
+    - unzip
+  async: 3600 # Maximum allowed time (seconds).
+  poll: 0 # Polling Interval (seconds).

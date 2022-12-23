@@ -1,0 +1,47 @@
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Import Playbooks into Single Execution File.
+# @see {@link https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Local library module fails to import and breaks Playbook.
+# @see {@link https://github.com/ansible/ansible/issues/65780}
+# @description: [Ansible] - Import Playbook from child directory break var Scope.
+# @see {@link https://github.com/ansible/ansible/issues/65780}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Ansible Global Variable when executing Playbooks.
+# @example: [`ansible_version`, `inventory_dir`, `playbook_dir`].
+# @see {@link https://github.com/ansible/ansible/blob/a183972477de03c8f924525135908d4db258d44f/lib/ansible/vars/hostvars.py#L31}
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Apply this file via the following Commands.
+# @command >> sudo cd /root/Linux-Command-Line-Tools/k8s-bootstrap/;
+# @command >> sudo ansible-playbook -i hosts.yml playbooks/admin/index.yml;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- hosts: [ gateways ]
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+
+  tasks:
+    - name: |
+        1.1. Install Yum Package Manager for Cluster Virtual Machines.
+        1.2. Install Functional YUM/DNF Packages for RHEL/CentOS 8.
+      include: "./tasks/01-pkg.yml"
+      when: False # Currently Disable.
+
+    - name: |
+        1.3. Install Easy-RSA to provision PKI Directory.
+      include: "./tasks/02-easy-rsa.yml"
+      when: False # Currently Disable.
+
+    - name: |
+        2.1. Execute Easy-RSA to provision PKI Directory.
+      include: "./tasks/03-pki.yml"
+      when: False # Currently Disable.
+
+    - name: |
+        3.1. Initialize Firewall Daemon via `Systemd`.
+      include: "./tasks/04-firewall.yml"

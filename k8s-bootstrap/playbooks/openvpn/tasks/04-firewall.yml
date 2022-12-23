@@ -1,0 +1,79 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Copy System Daemon Post Execution to OpenVPN Server Configuration.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: OpenVPN Tutorial on Linux (x86) Architecture.
+# @see {@link https://github.com/icyb3r-code/SysAdmin/tree/master/Linux/Contents/OpenVpn}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Copy System Daemon Post Execution to OpenVPN Server Configuration.
+  copy:
+    src: "{{ item }}"
+    dest: /etc/openvpn/server/
+    force: true
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=,o='
+  loop:
+    - ../script/add-bridge.sh
+    - ../script/del-bridge.sh
+
+# file module will create a directory if missing
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: File Module to create file within Destination Directory even if missing.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Systemctl Edit Registered Daemon Unit.
+# @see {@link https://unix.stackexchange.com/questions/657226/perform-systemctl-edit-with-ansible}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Create <service>.service.d directory
+  vars:
+    unit: openvpn-server@server
+  file:
+    path: /etc/systemd/system/{{ unit }}.service.d/
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=rx,o=rx'
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Template Module to create file within Destination Directory and override even if file exists.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Systemctl Edit Registered Daemon Unit.
+# @see {@link https://unix.stackexchange.com/questions/657226/perform-systemctl-edit-with-ansible}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Copy <service>.service drop-in
+  vars:
+    unit: openvpn-server@server
+  template:
+    src: ../config/openvpn-server@server.service.conf
+    dest: /etc/systemd/system/{{ unit }}.service.d/override.conf
+    force: true
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rw,g=r,o=r'
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Immediately start `firewalld` and Persist Daemon during System Reboot.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Immediately start `firewalld` and Persist Daemon during System Reboot.
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Immediately start `openvpn-server@server` and Persist Daemon during System Reboot.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Immediately start `openvpn-server@server` and Persist Daemon during System Reboot.
+  systemd:
+    name: openvpn-server@server
+    state: started
+    enabled: yes
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Reload `Systemd` Configuration Units.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Reload `Systemd` Configuration Units.
+  systemd:
+    daemon_reload: yes

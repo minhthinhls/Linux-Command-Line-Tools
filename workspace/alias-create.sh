@@ -13,13 +13,22 @@ sudo -s << HERE
   cd "$HOME";
 HERE
 
-# Get Absolute Path of this file in Linux System.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Get Absolute Path of this file in Linux System.
+# @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 FILE_PATH=$(readlink -f "$0");
-# Get Parent Directory of this file in Linux System
-# REFERENCE: @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file}
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Get Parent Directory of this file in Linux System.
+# @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 FOLDER_PATH="${FILE_PATH%/*}";
-# Get Project Directory of this file in Linux System
-# REFERENCE: @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file}
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Get Project Directory of this file in Linux System.
+# @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 PROJECT_PATH="${FOLDER_PATH%/*}";
 
 #################################################

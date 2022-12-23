@@ -1,0 +1,207 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Delete Easy-RSA generated PKI Directory.
+# @see {@link https://stackoverflow.com/questions/38200732/ansible-how-to-delete-files-and-folders-inside-a-directory/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Delete Easy-RSA generated PKI Directory.
+  file:
+    path: /usr/local/bin/easy-rsa/pki
+    state: absent
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision System PKI Directory.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Provision Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: easyrsa init-pki ;
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Certificate Authority (CA) within PKI Directories.
+# @arguments: [--batch] > Bypass Prompting for Common Names Declaration.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Provision Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: easyrsa --batch build-ca nopass ;
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Provision Certificate Authority (CA) within PKI Directories.
+# @see {@link https://stackoverflow.com/questions/56110622/how-to-use-ansible-to-run-a-script-which-ask-user-input/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Provision Certificate Authority (CA) within PKI Directories.
+  expect:
+    chdir: /usr/local/bin/easy-rsa/
+    command: easyrsa build-ca nopass
+    responses:
+      "Common Name(.*)": "gateway-01.digital-ocean"
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate Client Certificate signed by Certificate Authority (CA) within PKI Directories.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Generate Client Certificate signed by Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: easyrsa --batch build-client-full client-01 nopass ;
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate Server Certificate signed by Certificate Authority (CA) within PKI Directories.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Generate Server Certificate signed by Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: easyrsa --batch build-server-full server-01 nopass ;
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate Certificate Revoke List signed by Certificate Authority (CA) within PKI Directories.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Generate Certificate Revoke List signed by Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: easyrsa gen-crl ;
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Check whether Diffie-Hellman 2048-bit Key exists (1).
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Check whether Diffie-Hellman 2048-bit Key exists (1).
+  stat:
+    path: /usr/local/bin/easy-rsa/pki/dh.pem
+  register: dh_pem
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate Diffie-Hellman 2048-bit Key signed by Certificate Authority (CA) within PKI Directories.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Generate Diffie-Hellman 2048-bit Key signed by Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: easyrsa gen-dh ;
+  when: False # Currently Disable.
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate Diffie-Hellman 2048-bit Key signed by Certificate Authority (CA) within PKI Directories.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Generate Diffie-Hellman 2048-bit Key signed by Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: openssl dhparam -out ./pki/dh.pem 2048 ;
+  when: not dh_pem.stat.exists
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Generate TLS Encrypt Key signed by Certificate Authority (CA) within PKI Directories.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Generate TLS Encrypt Key signed by Certificate Authority (CA) within PKI Directories.
+  shell:
+    chdir: /usr/local/bin/easy-rsa/
+    cmd: openvpn --genkey secret ./pki/tc.key ;
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Copy all required Keys and Certificate within PKIs Directory to OpenVPN Server Configuration.
+# @command >> cp pki/ca.crt pki/private/ca.key pki/private/server.key pki/issued/server.crt pki/dh.pem pki/crl.pem pki/tc.key server/ ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: OpenVPN Tutorial on Linux (x86) Architecture.
+# @see {@link https://github.com/icyb3r-code/SysAdmin/tree/master/Linux/Contents/OpenVpn}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Copy all required Keys and Certificate within PKIs Directory to OpenVPN Server Configuration.
+  vars:
+    ROOT_DIR: /usr/local/bin/easy-rsa
+  copy:
+    src: "{{ ROOT_DIR }}/{{ item }}"
+    dest: /etc/openvpn/server/
+    force: true
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=r,o=r'
+  loop:
+    - pki/ca.crt
+    - pki/private/ca.key
+    - pki/private/server-01.key
+    - pki/issued/server-01.crt
+    - pki/crl.pem
+    - pki/dh.pem
+    - pki/tc.key
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Delete Easy-RSA generated PKI Directory.
+# @see {@link https://stackoverflow.com/questions/22472168/whats-the-easy-way-to-auto-create-non-existing-dir-in-ansible/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Ensure Client generated Certificate Directory Exists.
+  vars:
+    ROOT_DIR: /usr/local/bin/easy-rsa
+    SUB_DIR: clients/client-01
+  file:
+    path: "{{ ROOT_DIR }}/{{ SUB_DIR }}"
+    state: directory
+    mode: 'u=rwx,g=r,o=r'
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Copy all required Keys and Certificate within PKIs Directory to OpenVPN Client Configuration.
+# @command >> cp pki/ca.crt pki/private/client-01.key pki/issued/client-01.crt pki/tc.key clients/ ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: OpenVPN Tutorial on Linux (x86) Architecture.
+# @see {@link https://github.com/icyb3r-code/SysAdmin/tree/master/Linux/Contents/OpenVpn}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Copy all required Keys and Certificate within PKIs Directory to OpenVPN Server Configuration.
+  vars:
+    ROOT_DIR: /usr/local/bin/easy-rsa
+    DEST_DIR: clients/client-01/
+  copy:
+    src: "{{ ROOT_DIR }}/{{ item }}"
+    dest: "{{ ROOT_DIR }}/{{ DEST_DIR }}"
+    force: true
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=r,o=r'
+  loop:
+    - pki/ca.crt
+    - pki/private/client-01.key
+    - pki/issued/client-01.crt
+    - pki/tc.key
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Copy OpenVPN Client Configuration into corresponding Directory.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: OpenVPN Tutorial on Linux (x86) Architecture.
+# @see {@link https://github.com/icyb3r-code/SysAdmin/tree/master/Linux/Contents/OpenVpn}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Copy OpenVPN Client Configuration into corresponding Directory.
+  vars:
+    ROOT_DIR: /usr/local/bin/easy-rsa
+    DEST_DIR: clients/client-01/
+  copy:
+    src: "{{ item }}"
+    dest: "{{ ROOT_DIR }}/{{ DEST_DIR }}"
+    force: true
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=r,o=r'
+  loop:
+    - ../config/client.ovpn
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Ansible] - Community General Archive Module (Latest Version).
+# @see {@link https://docs.ansible.com/ansible/latest/collections/community/general/archive_module.html}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+- name: Create Gzip Archive for OpenVPN Client Connections.
+  vars:
+    ROOT_DIR: /usr/local/bin/easy-rsa
+    DEST_DIR: clients/client-01/
+    OUT_FILE: clients/client-01.tar
+  archive:
+    path: "{{ ROOT_DIR }}/{{ DEST_DIR }}"
+    dest: "{{ ROOT_DIR }}/{{ OUT_FILE }}"
+    format: tar
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create Symlink for Easy-RSA within `/usr/bin` environment $PATH.
+# @command >> ln -s /usr/local/bin/easy-rsa/easyrsa /usr/bin/easyrsa ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# - name: Create Symlink for Easy-RSA within `/usr/bin` environment $PATH.
+#   shell: >
+#     ln --symbolic
+#     /usr/local/bin/easy-rsa/easyrsa
+#     /usr/bin/easyrsa ;

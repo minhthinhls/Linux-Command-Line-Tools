@@ -8,10 +8,16 @@
 ########################### HOW TO RUN THIS FILE: > `bash -x -v pull.sh` ###########################
 ####################################################################################################
 
-# Get Absolute Path of this file in Linux System.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Get Absolute Path of this file in Linux System.
+# @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 FILE_PATH=$(readlink -f "$0");
-# Get Project Directory of this file in Linux System
-# REFERENCE: @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file}
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Get Project Directory of this file in Linux System.
+# @see {@link https://unix.stackexchange.com/questions/351916/get-the-parent-directory-of-a-given-file/}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 PROJECT_PATH="${FILE_PATH%/*}";
 
 # Force Pull

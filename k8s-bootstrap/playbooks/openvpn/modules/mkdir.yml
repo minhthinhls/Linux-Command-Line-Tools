@@ -1,0 +1,16 @@
+# yaml-language-server: $schema="https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks"
+# $schema: https://raw.githubusercontent.com/ansible-community/schemas/main/f/ansible.json#/$defs/tasks
+---
+- name: Check whether directories yet exists (1).
+  stat:
+    path: "{{ item }}"
+  register: __PATH__
+
+- name: Initialize argument specified directories (2).
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 'u=rwx,g=r,o=r'
+  when: not __PATH__.stat.exists

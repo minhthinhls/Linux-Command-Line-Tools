@@ -1,73 +1,101 @@
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @description: Create Google Cloud Compute Public IP Address within specific Region.
-# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_address}
-# @see {@link https://stackoverflow.com/questions/45359189/how-to-map-static-ip-to-terraform-google-compute-engine-instance}
+# @description: Local Variables for Google Cloud Compute Engines.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @description: Import Google Cloud Resources into Terraform Managed State.
-# @command >> sudo terraform import google_compute_address.keep_alived_instances keep-alived-01;
-# @see {@link https://stackoverflow.com/questions/70879211/importing-gcp-resource-into-terraform-fails-even-if-the-resource-exists/}
-# ----------------------------------------------------------------------------------------------------------------------------------------------------
-resource "google_compute_address" "external_network_address_translation_instances" {
-    count           = 1 # Switch to [1] to provision again.
-    name            = "external-network-address-translation-0${count.index + 1}"
-    address_type    = "EXTERNAL" # ["INTERNAL", "EXTERNAL"]
-    description     = "External-static-ipv4-for-Network-Address-Translation-0${count.index + 1}"
-    network_tier    = "PREMIUM" # ["PREMIUM", "STANDARD"]
-    # @description: The field cannot be specified with external address.
-    # purpose       = "GCE_ENDPOINT" # ["GCE_ENDPOINT", "SHARED_LOADBALANCER_VIP", "VPC_PEERING", "IPSEC_INTERCONNECT", "PRIVATE_SERVICE_CONNECT"]
-    region          = var.region
+locals {
+    root_domain = module.global.root_domain # Project Root Domain.
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_network}
-# @see {@link https://cloud.google.com/sdk/gcloud/reference/compute/networks/delete}
-# @command >> gcloud compute networks subnets delete [main-network]
+# @description: Local Variables for Sub-Network CIDR (Classless Inter Domain Routing) IP Allocation.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-resource "google_compute_network" "global_vpc" {
-    name                    = "global-vpc"
-    auto_create_subnetworks = "false"
-}
-
-# ----------------------------------------------------------------------------------------------------------------------------------------------------
-# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_subnetwork}
-# @see {@link https://cloud.google.com/sdk/gcloud/reference/compute/networks/subnets/delete}
-# @command >> gcloud compute networks subnets delete [sub-network] --region=asia-east2
-# ----------------------------------------------------------------------------------------------------------------------------------------------------
-resource "google_compute_subnetwork" "hongkong" {
-    name          = "asia-east2"
-    ip_cidr_range = var.subnet_ips[0] # "172.16.0.0/24"
-    region        = var.region
-    network       = google_compute_network.global_vpc.id
-    secondary_ip_range {
-        range_name    = "asia-east2-2"
-        ip_cidr_range = var.subnet_ips[1] # "192.168.0.0/24"
+locals {
+    subnet_ip_cidr_range = {
+        hongkong = {
+            primary = coalesce(null, var.subnet_ip_cidr_range.hongkong.primary) # Migrate to ${var.subnet_ip_cidr_range.hongkong.primary}.
+            secondary = coalesce(null, var.subnet_ip_cidr_range.hongkong.secondary, []) # Migrate to ${var.subnet_ip_cidr_range.hongkong.secondary}.
+        }
+        singapore = {
+            primary = coalesce(null, var.subnet_ip_cidr_range.singapore.primary) # Migrate to ${var.subnet_ip_cidr_range.singapore.primary}.
+            secondary = coalesce(null, var.subnet_ip_cidr_range.singapore.secondary, []) # Migrate to ${var.subnet_ip_cidr_range.singapore.secondary}.
+        }
     }
+}
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_network}.
+# @see {@link https://cloud.google.com/sdk/gcloud/reference/compute/networks/delete}.
+# @command >> gcloud compute networks subnets delete [main-network] ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+resource "google_compute_network" "this" {
+    name                    = var.name
+    auto_create_subnetworks = var.auto_create_subnetworks
+    routing_mode            = var.routing_mode
+    mtu                     = 0 # [1460]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Create Multiple Sub-Networks using Terraform. Each Sub-Network should have Multiple Secondary Addresses.
+# @see {@link https://discuss.hashicorp.com/t/create-multiple-subnets-using-terraform-each-subnet-should-have-multiple-secondary-adresses/43671}.
+# @see {@link https://stackoverflow.com/questions/72232623/ip-cidr-range-from-tf-vars-is-not-a-valid-ip-cidr-range-invalid-cidr-address}.
+# @see {@link https://stackoverflow.com/questions/57890909/dynamic-block-with-for-each-inside-a-resource-created-with-a-for-each}.
+# @see {@link https://stackoverflow.com/questions/58343258/iterate-over-nested-data-with-for-for-each-at-resource-level}.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: Manipulate Terraform Sub-Network Resources via Command Line Interfaces Application.
+# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_subnetwork}.
+# @see {@link https://cloud.google.com/sdk/gcloud/reference/compute/networks/subnets/delete}.
+# @command >> gcloud compute networks subnets delete [sub-network] --region=asia-east2 ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @description: [Refactoring / Transferring] State between Object Entries.
+# @example:
+# > terraform state mv \
+# > module.network.google_compute_subnetwork.hongkong \
+# > module.network.google_compute_subnetwork.this[\"hongkong\"] ;
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+resource "google_compute_subnetwork" "this" {
+    for_each = {
+        for region in keys(local.subnet_ip_cidr_range)
+        : region => local.subnet_ip_cidr_range[region]
+    }
+    name          = module.default.region_code[each.key] # Example: ["asia-east2"].
+    ip_cidr_range = each.value["primary"] # Example: ["172.16.0.0/24"].
+    region        = module.default.region_code[each.key] # Example: ["asia-east2"].
+    network       = google_compute_network.this.id
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @warning: Existing ${secondary_ip_range} cannot be modified. Sub-network must be destroyed completely and then re-created as whole new resource.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    /*
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @description: Terraform will not update Dynamic Block ${secondary_ip_range} when [${secondary_ip_range.length} === 0].
+    # @description: Attribute ${secondary_ip_range} must be set to empty array `[]`. This is a special case for this ${secondary_ip_range} field.
+    # @see {@link https://github.com/hashicorp/terraform-provider-google/issues/5801#issuecomment-594942222}.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    dynamic secondary_ip_range {
+        for_each = {for index, ip_cidr_range in each.value["secondary"] : (index + 2) => ip_cidr_range}
+        content {
+            range_name    = "${module.default.region_code[each.key]}-${secondary_ip_range.key}" # Example: ["asia-east2-2"].
+            ip_cidr_range = secondary_ip_range.value # Example: ["192.168.0.0/24"].
+        }
+    }
+    */
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # @warning: Existing ${secondary_ip_range} cannot be modified. Sub-network must be destroyed completely and then re-created as whole new resource.
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    secondary_ip_range  = [
+        for index, ip_cidr_range in each.value["secondary"] : {
+            range_name = "${module.default.region_code[each.key]}-${tonumber(index) + 2}" # Example: ["asia-east2-2"].
+            ip_cidr_range = ip_cidr_range # Example: ["192.168.0.0/24"].
+        }
+    ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # @description: Apply Network Address Translation (NATs) to allow Private Instance connect to the Internet.
-# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_router_nat/}
-# @see {@link https://stackoverflow.com/questions/47590302/google-cloud-vpc-internet-gateway/}
-# @see {@link https://cloud.google.com/nat/docs/overview/}
+# @see {@link https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_router_nat/}.
+# @see {@link https://stackoverflow.com/questions/47590302/google-cloud-vpc-internet-gateway/}.
+# @see {@link https://cloud.google.com/nat/docs/overview/}.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-resource "google_compute_router" "network_router" {
-    name    = "kubernetes-egress-router"
-    region  = google_compute_subnetwork.hongkong.region
-    network = google_compute_network.global_vpc.id
-}
-
-resource "google_compute_router_nat" "network_router_nat" {
-    name        = "kubernetes-egress-router-nat"
-    router      = google_compute_router.network_router.name
-    region      = google_compute_router.network_router.region
-    depends_on  = [google_compute_address.external_network_address_translation_instances]
-
-    nat_ip_allocate_option = "MANUAL_ONLY"
-    nat_ips                = google_compute_address.external_network_address_translation_instances.*.self_link
-
-    source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
-    subnetwork {
-        name                    = google_compute_subnetwork.hongkong.id
-        source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
-    }
+module "regional_router_nat" {
+    source = "./modules/router-nat/region"
+    network = google_compute_network.this
+    subnetwork = google_compute_subnetwork.this["hongkong"]
 }

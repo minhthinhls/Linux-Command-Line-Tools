@@ -25,9 +25,9 @@ terraform {
 # @see {@link https://stackoverflow.com/questions/59584420/how-to-define-global-variables-in-terraform/}.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 module "global" {
-    source = "../../../modules/@global"
+    source = "../../../../../modules/@global"
 }
 
 module "default" {
-    source = "../../../modules/google/@global"
+    source = "../../../../../modules/google/@global"
 }

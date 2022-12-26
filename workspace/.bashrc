@@ -459,6 +459,7 @@ alias proxy-ssh='proxy_client_ssh() {
   -o ProxyCommand=" \
     ssh \
     -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
+    -o UserKnownHostsFile=/dev/null \
     -o StrictHostKeyChecking=no \
     -q admin.e8s.io@"$1" \
     -W %h:%p \
@@ -482,6 +483,7 @@ alias proxy='proxy_client_ssh() {
   -o ProxyCommand=" \
     ssh \
     -i ~/.ssh/admin.e8s.io.open-ssh.ppk \
+    -o UserKnownHostsFile=/dev/null \
     -o StrictHostKeyChecking=no \
     -q admin.e8s.io@bastion-ingress.e8s.io \
     -W %h:%p \

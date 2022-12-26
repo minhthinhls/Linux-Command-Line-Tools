@@ -2,8 +2,11 @@
 # @description: Local Variables for Google Cloud Compute Engines.
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 locals {
-    offset = var.offset_instances # Instance Indexing Offset.
-    expose = var.reserved_external_ips # Instance Public Offset.
+    offset      = var.offset_instances # Instance Indexing Offset.
+    expose      = var.reserved_external_ips # Instance Public Offset.
+    region      = coalesce(var.region, module.default.region) # Fallback to default ${global.region} when ${var.region} got omitted.
+    zone        = coalesce(var.zone, module.default.zone) # Fallback to default ${global.zone} when ${var.zone} got omitted.
+    root_domain = module.global.root_domain # Project Root Domain.
     subnet_range = split(".", var.subnet_range)
     subnet_prefix = join(".", slice(local.subnet_range, 0, length(local.subnet_range) - 1)) # Remove Last Segment. Ex: [172.16.0.0/24] -> [172.16.0]
 }
@@ -20,8 +23,10 @@ resource "google_compute_address" "bastion-machines" {
     description     = "External-static-ipv4-for-Bastion-Machine-${format("%02d", (count.index + local.offset) + 1)}"
     network_tier    = "PREMIUM" # ["PREMIUM", "STANDARD"]
     # @description: The field cannot be specified with external address.
-    # purpose       = "GCE_ENDPOINT" # ["GCE_ENDPOINT", "SHARED_LOADBALANCER_VIP", "VPC_PEERING", "IPSEC_INTERCONNECT", "PRIVATE_SERVICE_CONNECT"]
-    region          = var.region
+    purpose         = null # ["GCE_ENDPOINT", "SHARED_LOADBALANCER_VIP", "VPC_PEERING", "IPSEC_INTERCONNECT", "PRIVATE_SERVICE_CONNECT"]
+    # @description: [Regional / Zonal] Allocation.
+    region          = local.region
+    # zone          = local.zone # @argument named "zone" is not expected here.
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -29,16 +34,18 @@ resource "google_compute_address" "bastion-machines" {
 # @see {@link https://github.com/hashicorp/terraform-provider-google/issues/5428}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_disk" "bastion-machines" {
-    count       = var.reserved_boot_disks # Switch to [1] to provision again.
-    name        = "${var.disk_options.type}-bastion-machine-${format("%02d", (count.index + local.offset) + 1)}"
-    type        = var.disk_options.type # ["pd-standard", "pd-balanced", "pd-ssd"]
-    zone        = var.zone
+    count           = var.reserved_boot_disks # Switch to [1] to provision again.
+    name            = "${var.disk_options.type}-bastion-machine-${format("%02d", (count.index + local.offset) + 1)}"
+    type            = var.disk_options.type # ["pd-standard", "pd-balanced", "pd-ssd"]
     # @description: Cannot specify both source image and source snapshot.
-    image       = try(var.disk_options.image, "") # ["centos-cloud/centos-stream-8", "debian-cloud/debian-9"]
+    image           = try(var.disk_options.image, "") # ["centos-cloud/centos-stream-8", "debian-cloud/debian-9"]
     # @description: Cannot specify both source image and source snapshot.
-    snapshot    = try(var.disk_options.snapshot, "")
-    labels      = tomap({role = "bastion-machines"})
-    size        = var.disk_options.size # Gigabytes
+    snapshot        = try(var.disk_options.snapshot, "")
+    labels          = tomap({role = "bastion-machines"})
+    size            = var.disk_options.size # Gigabytes
+    # @description: [Regional / Zonal] Allocation.
+    # region        = local.region # @argument named "region" is not expected here.
+    zone            = local.zone
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -46,25 +53,27 @@ resource "google_compute_disk" "bastion-machines" {
 # @see {@link https://github.com/hashicorp/terraform/issues/11770}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_instance" "bastion-machines" {
-    count        = ((var.number_instances > var.reserved_external_ips) ?
-                    (var.reserved_external_ips) :
-                    (var.number_instances)) # Switch to [1] to provision again.
+    count           = ((var.number_instances > var.reserved_external_ips) ?
+                       (var.reserved_external_ips) :
+                       (var.number_instances)) # Switch to [1] to provision again.
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     # @description: Reboot Google Cloud Compute Instance will not keep Hostname the same within `/etc/hostname`.
     # @see {@link https://stackoverflow.com/questions/49841511/change-hostname-permanently-in-google-compute-engine-instance-after-reboot/}
     # ------------------------------------------------------------------------------------------------------------------------------------------------
-    name         = "bastion-machine-${format("%02d", (count.index + local.offset) + 1)}"
-    hostname     = "bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.e8s.io"
-    machine_type = var.gce_options.machine_type # [["e2-small"] -> ["2CPUs :: 2GBs RAM"]] && [["e2-custom-2-3072"] -> ["2CPUs :: 3GBs RAM"]]
-    zone         = var.zone
-    tags         = ["bastion-machines"]
+    name            = "bastion-machine-${format("%02d", (count.index + local.offset) + 1)}"
+    hostname        = "bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.${local.root_domain}"
+    machine_type    = var.gce_options.machine_type # [["e2-small"] -> ["2CPUs :: 2GBs RAM"]] && [["e2-custom-2-3072"] -> ["2CPUs :: 3GBs RAM"]]
+    tags            = ["bastion-machines"]
+    # @description: [Regional / Zonal] Allocation.
+    # region        = local.region # @argument named "region" is not expected here.
+    zone            = local.zone
 
     metadata = {
         ssh-keys = "${var.secrets.gce_ssh_user}:${file(var.secrets.gce_ssh_pub_key_file)}"
         startup-script = <<EOF
-            sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.e8s.io';
-            echo 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.e8s.io' | sudo tee /etc/hostname > /dev/null;
-            sudo cp --force /root/.bashrc /home/admin.e8s.io/.bashrc 2> /dev/null;
+            sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.${local.root_domain}';
+            echo 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;
+            sudo cp --force /root/.bashrc /home/admin.${local.root_domain}/.bashrc 2> /dev/null;
             sudo systemctl restart kubelet 2> /dev/null;
         EOF
     }
@@ -117,8 +126,8 @@ resource "google_compute_instance" "bastion-machines" {
         }
 
         inline = [
-            "sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.e8s.io';",
-            "echo 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.e8s.io' | sudo tee /etc/hostname > /dev/null;",
+            "sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.${local.root_domain}';",
+            "echo 'bastion-machine-${format("%02d", (count.index + local.offset) + 1)}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;",
         ]
     }
 
@@ -129,25 +138,27 @@ resource "google_compute_instance" "bastion-machines" {
 # @see {@link https://github.com/hashicorp/terraform/issues/11770}
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 resource "google_compute_instance" "private-bastion-machines" {
-    count        = ((var.number_instances > var.reserved_external_ips) ?
-                    (var.number_instances - var.reserved_external_ips) :
-                    (0)) # Switch to [1] to provision again.
+    count           = ((var.number_instances > var.reserved_external_ips) ?
+                       (var.number_instances - var.reserved_external_ips) :
+                       (0)) # Switch to [1] to provision again.
     # ------------------------------------------------------------------------------------------------------------------------------------------------
     # @description: Reboot Google Cloud Compute Instance will not keep Hostname the same within `/etc/hostname`.
     # @see {@link https://stackoverflow.com/questions/49841511/change-hostname-permanently-in-google-compute-engine-instance-after-reboot/}
     # ------------------------------------------------------------------------------------------------------------------------------------------------
-    name         = "bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}"
-    hostname     = "bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.e8s.io"
-    machine_type = var.gce_options.machine_type # [["e2-small"] -> ["2CPUs :: 2GBs RAM"]] && [["e2-custom-2-3072"] -> ["2CPUs :: 3GBs RAM"]]
-    zone         = var.zone
-    tags         = ["bastion-machines"]
+    name            = "bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}"
+    hostname        = "bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.${local.root_domain}"
+    machine_type    = var.gce_options.machine_type # [["e2-small"] -> ["2CPUs :: 2GBs RAM"]] && [["e2-custom-2-3072"] -> ["2CPUs :: 3GBs RAM"]]
+    tags            = ["bastion-machines"]
+    # @description: [Regional / Zonal] Allocation.
+    # region        = local.region # @argument named "region" is not expected here.
+    zone            = local.zone
 
     metadata = {
         ssh-keys = "${var.secrets.gce_ssh_user}:${file(var.secrets.gce_ssh_pub_key_file)}"
         startup-script = <<EOF
-            sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.e8s.io';
-            echo 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.e8s.io' | sudo tee /etc/hostname > /dev/null;
-            sudo cp --force /root/.bashrc /home/admin.e8s.io/.bashrc 2> /dev/null;
+            sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.${local.root_domain}';
+            echo 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;
+            sudo cp --force /root/.bashrc /home/admin.${local.root_domain}/.bashrc 2> /dev/null;
             sudo systemctl restart kubelet 2> /dev/null;
         EOF
     }
@@ -201,15 +212,15 @@ resource "google_compute_instance" "private-bastion-machines" {
             # @see {@link https://github.com/hashicorp/terraform/issues/18889/}
             # @see {@link https://www.terraform.io/language/resources/provisioners/connection#connecting-through-a-bastion-host-with-ssh/}
             # ----------------------------------------------------------------------------------------------------------------------------------------
-            bastion_host        = "bastion-ingress.e8s.io"
+            bastion_host        = local.root_domain
             bastion_port        = 22
             bastion_user        = var.secrets.gce_ssh_user
             bastion_private_key = file(var.secrets.gce_ssh_private_key_file)
         }
 
         inline = [
-            "sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.e8s.io';",
-            "echo 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.e8s.io' | sudo tee /etc/hostname > /dev/null;",
+            "sudo hostnamectl set-hostname 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.${local.root_domain}';",
+            "echo 'bastion-machine-${format("%02d", (count.index + local.offset + local.expose) + 1)}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;",
         ]
     }
 

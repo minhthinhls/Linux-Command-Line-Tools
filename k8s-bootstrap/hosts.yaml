@@ -81,7 +81,7 @@ masters:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 workers:
   vars:
-    ansible_ssh_common_args: '-o ProxyCommand="ssh -i ~/.ssh/admin.e8s.io.open-ssh.ppk -o StrictHostKeyChecking=no -W %h:%p -q admin.e8s.io@bastion-ingress.e8s.io"'
+    ansible_ssh_common_args: '-o ProxyCommand="ssh -i ~/.ssh/admin.e8s.io.open-ssh.ppk -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -W %h:%p -q admin.e8s.io@bastion-ingress.e8s.io"'
   hosts:
     worker-01:
       ansible_host: worker-01.e8s.io

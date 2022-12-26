@@ -12,17 +12,28 @@ variable "network" {
     description = "GCP Main Network Mapper/Object."
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @warning: Keyword "optional" is valid only as a modifier for Object type Attributes.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 variable "region" {
     type        = string
-    default     = "asia-east2" # HongKong
-    # default   = "asia-southeast1" # Singapore
+    default     = null
     description = "Google Cloud Platform Project Region."
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @warning: Keyword "optional" is valid only as a modifier for Object type Attributes.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 variable "zone" {
     type        = string
-    default     = "asia-east2-a" # HongKong [Zone::A].
+    default     = null
     description = "Google Cloud Platform Project Availability Zones."
+}
+
+variable "bastion_machine" {
+    type        = string
+    default     = null # "bastion-ingress.k8s.io"
+    description = "Bastion Compute-Engine Instance to proxy SSH into Google Cloud Platform VPC."
 }
 
 variable "secrets" {
@@ -47,6 +58,45 @@ variable "secrets" {
     description = "[Service_Account] Credentials from [Google_Cloud] Providers."
 }
 
+variable "general_options" {
+    type = object({
+        name: string,
+        tags: string,
+        domain: string,
+    })
+    default = {
+        name   = "Worker" # ["Bastion-Machine", "Load-Balancer", "Master", "Worker"].
+        tags   = "workers" # ["bastion-machines", "load-balancers", "masters", "workers"].
+        domain = null # [Compute-Engine Instance] Virtual-Machine [Host / Hostname] Domain.
+    }
+    description = "[Name / Tags] of Terraform Resources to be Provisioned by Google Cloud Platform."
+}
+
+variable "network_options" {
+    type = object({
+        subnet_range: string,
+        public: bool,
+    })
+    default = {
+        subnet_range = "172.16.0.0/24" # Private Network Range for Compute-Engine Instance assigned with Private IPs.
+        public = true # Internet Expose Strategy of Compute-Engine Instance to be Provisioned by Google Cloud Platform.
+    }
+    description = "Networking Properties of Terraform Resources to be Provisioned by Google Cloud Platform."
+}
+
+variable "gce_options" {
+    type = object({
+        machine_type: string,
+        // noinspection TFIncorrectVariableType
+        provisioning_model: optional(string),
+    })
+    default = {
+        machine_type = "e2-standard-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]].
+        provisioning_model = "STANDARD" # ["STANDARD", "SPOT"].
+    }
+    description = "Default Setting for Compute-Engine Instance within Google Cloud Platform."
+}
+
 variable "disk_options" {
     type = object({
         size: number,
@@ -57,24 +107,14 @@ variable "disk_options" {
         snapshot: optional(string),
     })
     default = {
-        size = 100, # Gigabytes
-        type = "pd-standard", # ["pd-standard", "pd-balanced", "pd-ssd"]
+        size = 100 # Gigabytes
+        type = "pd-standard" # ["pd-standard", "pd-balanced", "pd-ssd"]
         # @description: Cannot specify both source image and source snapshot.
         image = "centos-cloud/centos-stream-8" # ["debian-cloud/debian-9"]
         # @description: Cannot specify both source image and source snapshot.
-        snapshot = "snapshot-workers", # Snapshot Resources for Provisioning Boot Disks.
+        snapshot = "snapshot-workers" # Snapshot Resources for Provisioning Boot Disks.
     }
     description = "Default Setting for Persistent attached with Disks Compute-Engine."
-}
-
-variable "gce_options" {
-    type = object({
-        machine_type: string,
-    })
-    default = {
-        machine_type = "e2-standard-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
-    }
-    description = "Default Setting for Compute-Engine Instance within Google Cloud Platform."
 }
 
 variable "subnet_range" {

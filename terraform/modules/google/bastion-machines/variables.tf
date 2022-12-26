@@ -12,16 +12,21 @@ variable "network" {
     description = "GCP Main Network Mapper/Object."
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @warning: Keyword "optional" is valid only as a modifier for Object type Attributes.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 variable "region" {
     type        = string
-    default     = "asia-east2" # HongKong
-    # default   = "asia-southeast1" # Singapore
+    default     = null
     description = "Google Cloud Platform Project Region."
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# @warning: Keyword "optional" is valid only as a modifier for Object type Attributes.
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
 variable "zone" {
     type        = string
-    default     = "asia-east2-a" # HongKong [Zone::A].
+    default     = null
     description = "Google Cloud Platform Project Availability Zones."
 }
 

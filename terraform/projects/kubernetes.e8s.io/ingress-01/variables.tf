@@ -24,8 +24,8 @@ variable "snapshot_load_balancer_instances" {
 variable "load_balancer_instances" {
     default = {
         reserved_external_ips = 0
-        reserved_boot_disks = 3 # 3
+        reserved_boot_disks = 0 # 3
         offset_instances = 0 # 0
-        number_instances = 3 # 3
+        number_instances = 0 # 3
     }
 }

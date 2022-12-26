@@ -17,6 +17,6 @@ output "load-balancers" {
     value = module.load-balancers.self_links
 }
 
-output "external-load-balancers" {
-    value = module.external-load-balancers
+output "external-network-load-balancers" {
+    value = module.external-network-load-balancers
 }

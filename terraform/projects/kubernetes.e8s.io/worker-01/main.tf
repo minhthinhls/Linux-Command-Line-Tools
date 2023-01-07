@@ -73,14 +73,14 @@ module "firewall" {
     ]
 }
 
-module "secrets" {
+module "_secrets" {
     source = "../../../modules/google/secrets"
 }
 
 module "snapshot-workers" {
     source = "../../../modules/google/snapshot-workers"
     network = module.network
-    secrets = module.secrets
+    secrets = module._secrets
     subnet_range = local.subnet_ip_cidr_range.hongkong.primary
     disk_options = merge(local.disk_options, {
         size = 20 # Gigabytes - [Requested disk size cannot be smaller than the snapshot size (250 GB)].
@@ -104,7 +104,7 @@ module "snapshot-workers" {
 module "workers" {
     source = "../../../modules/google/workers"
     network = module.network
-    secrets = module.secrets
+    secrets = module._secrets
     region = "asia-east2" # [Optional] ["asia-east2"] HongKong [Regional].
     zone = "asia-east2-a" # [Optional] ["asia-east2-a"] HongKong [Zone::A].
     subnet_range = local.subnet_ip_cidr_range.hongkong.primary
@@ -150,7 +150,7 @@ module "workers" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-4"] -> ["4CPUs :: 32GBs RAM"]]
+            machine_type = module.default.machine_type.e2["2-cpu-16gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {
@@ -169,7 +169,7 @@ module "workers" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
+            machine_type = module.default.machine_type.e2["2-cpu-16gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {
@@ -188,7 +188,7 @@ module "workers" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
+            machine_type = module.default.machine_type.e2["2-cpu-16gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {
@@ -207,7 +207,7 @@ module "workers" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
+            machine_type = module.default.machine_type.e2["2-cpu-16gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {

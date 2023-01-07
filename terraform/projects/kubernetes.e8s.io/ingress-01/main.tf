@@ -73,14 +73,14 @@ module "firewall" {
     ]
 }
 
-module "secrets" {
+module "_secrets" {
     source = "../../../modules/google/secrets"
 }
 
 module "bastion-machines" {
     source = "../../../modules/google/bastion-machines"
     network = module.network
-    secrets = module.secrets
+    secrets = module._secrets
     subnet_range = local.subnet_ip_cidr_range.hongkong.primary
     gce_options = {
         machine_type = module.default.machine_type.e2["1-cpu-1gb-memory"]
@@ -102,7 +102,7 @@ module "bastion-machines" {
 module "snapshot-load-balancers" {
     source = "../../../modules/google/snapshot-load-balancers"
     network = module.network
-    secrets = module.secrets
+    secrets = module._secrets
     subnet_range = local.subnet_ip_cidr_range.hongkong.primary
     gce_options = {
         machine_type = "e2-standard-4" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
@@ -129,7 +129,7 @@ module "snapshot-load-balancers" {
 module "load-balancers" {
     source = "../../../modules/google/load-balancers"
     network = module.network
-    secrets = module.secrets
+    secrets = module._secrets
     subnet_range = local.subnet_ip_cidr_range.hongkong.primary
     gce_options = {
         machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
@@ -320,4 +320,63 @@ module "external-network-load-balancers" {
     depends_on = [module.load-balancers]
     endpoints = module.load-balancers.self_links
     index = 1
+    config_pools = [{
+        # @override - [${module.region} | ${module.zone}].
+        availability_options = merge(local.availability_options, {
+            region = local.availability_options.region # Example: ["asia-east2"].
+        }),
+        network_options = merge({
+            strategy = "L4" # Example: ["L3", "L4"].
+            protocol = "TCP" # Example: ["TCP", "UDP"]. Valid only for `Layer4` strategy.
+            port_range = "1-65535", # Example: ["30000-32768"]. Valid only for `Layer4` strategy.
+        }),
+        provision_options = merge({
+            mode = "FORWARDING_RULE_ENABLED" # ["IPV4_RESERVED", "FORWARDING_RULE_ENABLED"].
+        }),
+        skip = false
+        index = 1,
+    }, {
+        # @override - [${module.region} | ${module.zone}].
+        availability_options = merge(local.availability_options, {
+            region = local.availability_options.region # Example: ["asia-east2"].
+        }),
+        network_options = merge({
+            strategy = "L4" # Example: ["L3", "L4"].
+            protocol = "TCP" # Example: ["TCP", "UDP"]. Valid only for `Layer4` strategy.
+            port_range = "80-443", # Example: ["30000-32768"]. Valid only for `Layer4` strategy.
+        }),
+        provision_options = merge({
+            mode = "FORWARDING_RULE_ENABLED" # ["IPV4_RESERVED", "FORWARDING_RULE_ENABLED"].
+        }),
+        skip = false
+        index = 2,
+    }, {
+        # @override - [${module.region} | ${module.zone}].
+        availability_options = merge(local.availability_options, {
+            region = local.availability_options.region # Example: ["asia-east2"].
+        }),
+        network_options = merge({
+            strategy = "L4" # Example: ["L3", "L4"].
+            protocol = "TCP" # Example: ["TCP", "UDP"]. Valid only for `Layer4` strategy.
+            port_range = "30000-32768", # Example: ["30000-32768"]. Valid only for `Layer4` strategy.
+        }),
+        provision_options = merge({
+            mode = "FORWARDING_RULE_ENABLED" # ["IPV4_RESERVED", "FORWARDING_RULE_ENABLED"].
+        }),
+        skip = false
+        index = 4,
+    }, {
+        # @override - [${module.region} | ${module.zone}].
+        availability_options = merge(local.availability_options, {
+            region = local.availability_options.region # Example: ["asia-east2"].
+        }),
+        network_options = merge({
+            strategy = "L3" # Example: ["L3", "L4"].
+        }),
+        provision_options = merge({
+            mode = "FORWARDING_RULE_ENABLED" # ["IPV4_RESERVED", "FORWARDING_RULE_ENABLED"].
+        }),
+        skip = true
+        index = 3,
+    }]
 }

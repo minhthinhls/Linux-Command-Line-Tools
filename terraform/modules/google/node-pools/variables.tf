@@ -131,9 +131,6 @@ variable "network" {
 
 variable "secrets" {
     type = object({
-        gce_ssh_user: string,
-        gce_ssh_pub_key_file: string,
-        gce_ssh_private_key_file: string,
         service_account: object({
             type: string,
             project_id: string,
@@ -147,6 +144,10 @@ variable "secrets" {
             client_x509_cert_url: string,
             file_path: string,
         }),
+        /** @type {Object<key:string => val:File>} ~!*/
+        ssh_public_key_file: map(string),
+        /** @type {Object<key:string => val:File>} ~!*/
+        ssh_private_key_file: map(string),
     })
     description = "[Service_Account] Credentials from [Google_Cloud] Providers."
 }

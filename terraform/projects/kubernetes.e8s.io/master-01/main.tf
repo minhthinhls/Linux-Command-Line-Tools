@@ -74,7 +74,7 @@ module "firewall" {
 }
 
 module "secrets" {
-    source = "../../../modules/google/secrets"
+    source = "../../../modules/@global/modules/secrets"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -103,7 +103,7 @@ module "masters" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-4" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-4"] -> ["4CPUs :: 32GBs RAM"]]
+            machine_type = module.default.machine_type.e2["4-cpu-32gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {
@@ -121,7 +121,7 @@ module "masters" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
+            machine_type = module.default.machine_type.e2["2-cpu-16gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {
@@ -139,7 +139,7 @@ module "masters" {
             subnet_range = local.subnet_ip_cidr_range.hongkong.primary # Override $[`module.*.subnet_range`].
         }),
         gce_options = merge(local.gce_options, {
-            machine_type = "e2-highmem-2" # [["e2-standard-2"] -> ["2CPUs :: 8GBs RAM"]] && [["e2-highmem-2"] -> ["2CPUs :: 16GBs RAM"]]
+            machine_type = module.default.machine_type.e2["2-cpu-16gb-memory"]
             # provisioning_model = "X" # Terminate VM Instance.
         }),
         disk_options = merge(local.disk_options, {

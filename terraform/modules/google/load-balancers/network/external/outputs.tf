@@ -1,3 +1,5 @@
 output "network_load_balancers_ipv4" {
-    value = google_compute_forwarding_rule.this.*.ip_address
+    value = flatten([
+        [for key, forwarding_rule in google_compute_forwarding_rule.this : forwarding_rule.ip_address],
+    ])
 }

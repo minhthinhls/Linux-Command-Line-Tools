@@ -9,6 +9,7 @@ locals {
     zone        = coalesce(var.zone, module.default.zone) # Fallback to default ${global.zone} when ${var.zone} got omitted.
     bastion_vm  = coalesce(var.bastion_machine, "bastion-01.${module.global.root_domain}") # Bastion Virtual Machine Endpoints.
     root_domain = coalesce(var.general_options.domain, module.global.root_domain) # Project Root Domain.
+    admin_user  = coalesce("admin.${local.root_domain}") # Project Default SSH User.
     index       = var.index + 1
     suffix      = format("%02d", local.index) # String Format. Ex: [1] -> ["01"]
     resource_id = "${lower(local.name)}-${local.suffix}"
@@ -91,7 +92,8 @@ resource "google_compute_instance" "public_standard_vm" {
     zone            = local.zone
 
     metadata = {
-        ssh-keys = "${var.secrets.gce_ssh_user}:${file(var.secrets.gce_ssh_pub_key_file)}"
+        ssh-keys = join("\n", [for user_name, public_key in var.secrets.ssh_public_key_file : "${user_name}:${public_key}"])
+        block-project-ssh-keys = true
         startup-script = <<EOF
             sudo hostnamectl set-hostname '${local.resource_id}.${local.root_domain}';
             echo '${local.resource_id}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;
@@ -150,9 +152,9 @@ resource "google_compute_instance" "public_standard_vm" {
             # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].access_config[0].nat_ip
             type        = "ssh"
-            user        = var.secrets.gce_ssh_user
+            user        = local.admin_user
             timeout     = "60s"
-            private_key = file(var.secrets.gce_ssh_private_key_file)
+            private_key = var.secrets.ssh_private_key_file[local.admin_user]
         }
 
         inline = [
@@ -182,7 +184,8 @@ resource "google_compute_instance" "private_standard_vm" {
     zone            = local.zone
 
     metadata = {
-        ssh-keys = "${var.secrets.gce_ssh_user}:${file(var.secrets.gce_ssh_pub_key_file)}"
+        ssh-keys = join("\n", [for user_name, public_key in var.secrets.ssh_public_key_file : "${user_name}:${public_key}"])
+        block-project-ssh-keys = true
         startup-script = <<EOF
             sudo hostnamectl set-hostname '${local.resource_id}.${local.root_domain}';
             echo '${local.resource_id}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;
@@ -238,9 +241,9 @@ resource "google_compute_instance" "private_standard_vm" {
             # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].network_ip
             type        = "ssh"
-            user        = var.secrets.gce_ssh_user
+            user        = local.admin_user
             timeout     = "60s"
-            private_key = file(var.secrets.gce_ssh_private_key_file)
+            private_key = var.secrets.ssh_private_key_file[local.admin_user]
 
             # ----------------------------------------------------------------------------------------------------------------------------------------
             # @description: SSH Through Kubernetes Cluster Bastion Machine.
@@ -249,8 +252,8 @@ resource "google_compute_instance" "private_standard_vm" {
             # ----------------------------------------------------------------------------------------------------------------------------------------
             bastion_host        = local.bastion_vm
             bastion_port        = 22
-            bastion_user        = var.secrets.gce_ssh_user
-            bastion_private_key = file(var.secrets.gce_ssh_private_key_file)
+            bastion_user        = local.admin_user
+            bastion_private_key = var.secrets.ssh_private_key_file[local.admin_user]
         }
 
         inline = [
@@ -280,7 +283,8 @@ resource "google_compute_instance" "public_spot_vm" {
     zone            = local.zone
 
     metadata = {
-        ssh-keys = "${var.secrets.gce_ssh_user}:${file(var.secrets.gce_ssh_pub_key_file)}"
+        ssh-keys = join("\n", [for user_name, public_key in var.secrets.ssh_public_key_file : "${user_name}:${public_key}"])
+        block-project-ssh-keys = true
         startup-script = <<EOF
             sudo hostnamectl set-hostname '${local.resource_id}.${local.root_domain}';
             echo '${local.resource_id}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;
@@ -340,9 +344,9 @@ resource "google_compute_instance" "public_spot_vm" {
             # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].access_config[0].nat_ip
             type        = "ssh"
-            user        = var.secrets.gce_ssh_user
+            user        = local.admin_user
             timeout     = "60s"
-            private_key = file(var.secrets.gce_ssh_private_key_file)
+            private_key = var.secrets.ssh_private_key_file[local.admin_user]
         }
 
         inline = [
@@ -372,7 +376,8 @@ resource "google_compute_instance" "private_spot_vm" {
     zone            = local.zone
 
     metadata = {
-        ssh-keys = "${var.secrets.gce_ssh_user}:${file(var.secrets.gce_ssh_pub_key_file)}"
+        ssh-keys = join("\n", [for user_name, public_key in var.secrets.ssh_public_key_file : "${user_name}:${public_key}"])
+        block-project-ssh-keys = true
         startup-script = <<EOF
             sudo hostnamectl set-hostname '${local.resource_id}.${local.root_domain}';
             echo '${local.resource_id}.${local.root_domain}' | sudo tee /etc/hostname > /dev/null;
@@ -429,9 +434,9 @@ resource "google_compute_instance" "private_spot_vm" {
             # ----------------------------------------------------------------------------------------------------------------------------------------
             host        = self.network_interface[0].network_ip
             type        = "ssh"
-            user        = var.secrets.gce_ssh_user
+            user        = local.admin_user
             timeout     = "60s"
-            private_key = file(var.secrets.gce_ssh_private_key_file)
+            private_key = var.secrets.ssh_private_key_file[local.admin_user]
 
             # ----------------------------------------------------------------------------------------------------------------------------------------
             # @description: SSH Through Kubernetes Cluster Bastion Machine.
@@ -440,8 +445,8 @@ resource "google_compute_instance" "private_spot_vm" {
             # ----------------------------------------------------------------------------------------------------------------------------------------
             bastion_host        = local.bastion_vm
             bastion_port        = 22
-            bastion_user        = var.secrets.gce_ssh_user
-            bastion_private_key = file(var.secrets.gce_ssh_private_key_file)
+            bastion_user        = local.admin_user
+            bastion_private_key = var.secrets.ssh_private_key_file[local.admin_user]
         }
 
         inline = [

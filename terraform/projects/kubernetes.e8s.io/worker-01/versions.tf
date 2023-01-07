@@ -31,3 +31,7 @@ module "global" {
 module "default" {
     source = "../../../modules/google/@global"
 }
+
+module "secrets" {
+    source = "../../../modules/@global/modules/secrets"
+}
